@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, AlertTriangle, Brain } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Brain, Edit2 } from 'lucide-react';
 import type { Participant } from '@/pages/Index';
 
 interface RoleQuestionnaireProps {
@@ -33,7 +33,7 @@ const questions = [
     options: ['Yes', 'No', 'Partially'],
     roleMapping: {
       'Yes': ['Manufacturer', 'PRU (Product Responsible Unit)'],
-      'No': ['Distributor', 'End Customer'],
+      'No': ['Distributor', 'End Customer', 'LRD (Limited Risk Distributor)'],
       'Partially': ['Sub-contractor', 'Supplier']
     }
   },
@@ -45,7 +45,7 @@ const questions = [
       'Primary distributor': ['Distributor', 'LRD (Limited Risk Distributor)'],
       'Secondary distributor': ['Sub-contractor', 'Distributor'],
       'End customer': ['End Customer'],
-      'Not involved': ['Manufacturer', 'Supplier']
+      'Not involved': ['Manufacturer', 'Supplier', 'PRU (Product Responsible Unit)']
     }
   },
   {
@@ -78,6 +78,7 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
   onNotification
 }) => {
   const [selectedParticipant, setSelectedParticipant] = useState<string>('');
+  const [editingParticipant, setEditingParticipant] = useState<string>('');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [suggestedRoles, setSuggestedRoles] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -124,10 +125,23 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
     onNotification(`Role "${role}" assigned to ${participant?.entityName}`);
     
     // Reset for next participant
+    resetForm();
+  };
+
+  const resetForm = () => {
     setAnswers({});
     setSuggestedRoles([]);
     setShowSuggestions(false);
     setSelectedParticipant('');
+    setEditingParticipant('');
+  };
+
+  const startEditing = (participantId: string) => {
+    setEditingParticipant(participantId);
+    setSelectedParticipant('');
+    setAnswers({});
+    setSuggestedRoles([]);
+    setShowSuggestions(false);
   };
 
   const autoAssignRoles = () => {
@@ -176,7 +190,7 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
     }
   };
 
-  const currentParticipant = participants.find(p => p.id === selectedParticipant);
+  const currentParticipant = participants.find(p => p.id === selectedParticipant || p.id === editingParticipant);
   const unassignedParticipants = participants.filter(p => !p.role);
   const assignedParticipants = participants.filter(p => p.role);
 
@@ -219,7 +233,18 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
                   <span className="font-medium">{participant.entityName}</span>
                   <span className="text-sm text-gray-600">({participant.country})</span>
                 </div>
-                <Badge variant="default">{participant.role}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default">{participant.role}</Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startEditing(participant.id)}
+                    className="flex items-center gap-1"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Edit
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -251,7 +276,7 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
               </Select>
             </div>
 
-            {/* Manual Role Assignment */}
+            {/* Manual Role Assignment for unassigned */}
             {selectedParticipant && !showSuggestions && (
               <div className="space-y-4">
                 <div>
@@ -276,61 +301,95 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        </Card>
+      )}
 
-            {/* Questionnaire */}
-            {selectedParticipant && currentParticipant && (
-              <div className="space-y-4 border-t pt-4">
-                <h5 className="font-medium">
-                  Questionnaire for: {currentParticipant.entityName}
-                </h5>
-                
-                {questions.map((question) => (
-                  <div key={question.id} className="space-y-2">
-                    <Label className="text-sm font-medium">{question.text}</Label>
-                    <RadioGroup
-                      value={answers[question.id] || ''}
-                      onValueChange={(value) => handleAnswerChange(question.id, value)}
-                    >
-                      {question.options.map((option) => (
-                        <div key={option} className="flex items-center space-x-2">
-                          <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                          <Label htmlFor={`${question.id}-${option}`} className="text-sm">
-                            {option}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
+      {/* Edit Role for assigned participants */}
+      {editingParticipant && (
+        <Card className="p-4 border-blue-200 bg-blue-50">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Edit2 className="w-5 h-5 text-blue-600" />
+            Editing Role for: {participants.find(p => p.id === editingParticipant)?.entityName}
+          </h4>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Select new role:</Label>
+              <Select onValueChange={(role) => assignRole(editingParticipant, role)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {predefinedRoles.map(role => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Questionnaire */}
+      {(selectedParticipant || editingParticipant) && currentParticipant && (
+        <div className="space-y-4 border-t pt-4">
+          <h5 className="font-medium">
+            Questionnaire for: {currentParticipant.entityName}
+          </h5>
+          
+          {questions.map((question) => (
+            <div key={question.id} className="space-y-2">
+              <Label className="text-sm font-medium">{question.text}</Label>
+              <RadioGroup
+                value={answers[question.id] || ''}
+                onValueChange={(value) => handleAnswerChange(question.id, value)}
+              >
+                {question.options.map((option) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option} id={`${question.id}-${option}`} />
+                    <Label htmlFor={`${question.id}-${option}`} className="text-sm">
+                      {option}
+                    </Label>
                   </div>
                 ))}
-              </div>
-            )}
+              </RadioGroup>
+            </div>
+          ))}
+        </div>
+      )}
 
-            {/* AI Suggestions */}
-            {showSuggestions && suggestedRoles.length > 0 && (
-              <Card className="p-4 bg-blue-50">
-                <h5 className="font-medium mb-2 flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-blue-600" />
-                  AI-Suggested Roles:
-                </h5>
-                <div className="flex gap-2 flex-wrap">
-                  {suggestedRoles.map((role) => (
-                    <Button
-                      key={role}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => assignRole(selectedParticipant, role)}
-                      className="text-xs"
-                    >
-                      {role}
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  Click on a suggested role to assign it, or continue with manual selection above.
-                </p>
-              </Card>
-            )}
+      {/* AI Suggestions */}
+      {showSuggestions && suggestedRoles.length > 0 && (
+        <Card className="p-4 bg-blue-50">
+          <h5 className="font-medium mb-2 flex items-center gap-2">
+            <Brain className="w-4 h-4 text-blue-600" />
+            AI-Suggested Roles:
+          </h5>
+          <div className="flex gap-2 flex-wrap">
+            {suggestedRoles.map((role) => (
+              <Button
+                key={role}
+                variant="outline"
+                size="sm"
+                onClick={() => assignRole(selectedParticipant || editingParticipant, role)}
+                className="text-xs"
+              >
+                {role}
+              </Button>
+            ))}
           </div>
+          <p className="text-xs text-gray-600 mt-2">
+            Click on a suggested role to assign it, or continue with manual selection above.
+          </p>
         </Card>
       )}
 

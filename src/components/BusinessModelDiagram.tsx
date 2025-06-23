@@ -64,8 +64,8 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     if (!diagramRef.current || !participantId) return;
 
     const rect = diagramRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left - 75, rect.width - 150)); // Keep within bounds
-    const y = Math.max(0, Math.min(e.clientY - rect.top - 30, rect.height - 80)); // Keep within bounds
+    const x = Math.max(0, Math.min(e.clientX - rect.left - 60, rect.width - 120)); // Keep within bounds
+    const y = Math.max(0, Math.min(e.clientY - rect.top - 30, rect.height - 60)); // Keep within bounds
 
     const updatedParticipants = participants.map(p =>
       p.id === participantId ? { ...p, x, y } : p
@@ -90,6 +90,11 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
       return;
     }
 
+    // Remove existing flows between these participants
+    const filteredFlows = flows.filter(f => 
+      !(f.from === newFlow.from && f.to === newFlow.to)
+    );
+
     const newFlows: Flow[] = [];
     const timestamp = Date.now();
 
@@ -105,7 +110,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
 
     if (newFlow.types.delivery) {
       newFlows.push({
-        id: `delivery-${timestamp}`,
+        id: `delivery-${timestamp + 1}`,
         from: newFlow.from,
         to: newFlow.to,
         type: 'delivery',
@@ -113,7 +118,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
       });
     }
 
-    onUpdateFlows([...flows, ...newFlows]);
+    onUpdateFlows([...filteredFlows, ...newFlows]);
     onNotification(`Created ${newFlows.length} flow(s) successfully`);
     setIsFlowDialogOpen(false);
     setNewFlow({ from: '', to: '', types: { billing: false, delivery: false }, label: '' });
@@ -125,30 +130,56 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
   };
 
   const autoGenerateFlows = () => {
+    if (participants.length < 2) {
+      onNotification('Need at least 2 participants to generate flows');
+      return;
+    }
+
     const newFlows: Flow[] = [];
     
     // Generate flows based on roles
     const endCustomers = participants.filter(p => p.role === 'End Customer');
-    const distributors = participants.filter(p => p.role?.includes('Distributor') || p.role?.includes('LRD'));
-    const manufacturers = participants.filter(p => p.role?.includes('PRU') || p.role?.includes('Manufacturer'));
+    const distributors = participants.filter(p => 
+      p.role?.includes('Distributor') || p.role?.includes('LRD')
+    );
+    const manufacturers = participants.filter(p => 
+      p.role?.includes('PRU') || p.role?.includes('Manufacturer')
+    );
     
+    console.log('Auto-generating flows:', { endCustomers, distributors, manufacturers });
+
+    let flowCounter = 0;
+
     // Create delivery flows: Manufacturer -> Distributor -> End Customer
     manufacturers.forEach(manufacturer => {
       distributors.forEach(distributor => {
         newFlows.push({
-          id: `delivery-${manufacturer.id}-${distributor.id}`,
+          id: `auto-delivery-${flowCounter++}`,
           from: manufacturer.id,
           to: distributor.id,
           type: 'delivery',
           label: 'Product Delivery'
         });
       });
+
+      // Direct delivery if no distributors
+      if (distributors.length === 0) {
+        endCustomers.forEach(customer => {
+          newFlows.push({
+            id: `auto-delivery-${flowCounter++}`,
+            from: manufacturer.id,
+            to: customer.id,
+            type: 'delivery',
+            label: 'Product Delivery'
+          });
+        });
+      }
     });
 
     distributors.forEach(distributor => {
       endCustomers.forEach(customer => {
         newFlows.push({
-          id: `delivery-${distributor.id}-${customer.id}`,
+          id: `auto-delivery-${flowCounter++}`,
           from: distributor.id,
           to: customer.id,
           type: 'delivery',
@@ -161,19 +192,32 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     endCustomers.forEach(customer => {
       distributors.forEach(distributor => {
         newFlows.push({
-          id: `billing-${customer.id}-${distributor.id}`,
+          id: `auto-billing-${flowCounter++}`,
           from: customer.id,
           to: distributor.id,
           type: 'billing',
           label: 'Payment'
         });
       });
+
+      // Direct billing if no distributors
+      if (distributors.length === 0) {
+        manufacturers.forEach(manufacturer => {
+          newFlows.push({
+            id: `auto-billing-${flowCounter++}`,
+            from: customer.id,
+            to: manufacturer.id,
+            type: 'billing',
+            label: 'Payment'
+          });
+        });
+      }
     });
 
     distributors.forEach(distributor => {
       manufacturers.forEach(manufacturer => {
         newFlows.push({
-          id: `billing-${distributor.id}-${manufacturer.id}`,
+          id: `auto-billing-${flowCounter++}`,
           from: distributor.id,
           to: manufacturer.id,
           type: 'billing',
@@ -181,6 +225,26 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
         });
       });
     });
+
+    // If no role-based flows, create simple connections
+    if (newFlows.length === 0 && participants.length >= 2) {
+      for (let i = 0; i < participants.length - 1; i++) {
+        newFlows.push({
+          id: `auto-delivery-${flowCounter++}`,
+          from: participants[i].id,
+          to: participants[i + 1].id,
+          type: 'delivery',
+          label: 'Delivery Flow'
+        });
+        newFlows.push({
+          id: `auto-billing-${flowCounter++}`,
+          from: participants[i + 1].id,
+          to: participants[i].id,
+          type: 'billing',
+          label: 'Billing Flow'
+        });
+      }
+    }
 
     onUpdateFlows(newFlows);
     onNotification(`Auto-generated ${newFlows.length} flows based on participant roles`);
@@ -192,9 +256,9 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     
     if (!fromParticipant || !toParticipant) return '';
 
-    const fromX = (fromParticipant.x || 0) + 75; // Center of participant box
+    const fromX = (fromParticipant.x || 0) + 60; // Center of participant box
     const fromY = (fromParticipant.y || 0) + 30;
-    const toX = (toParticipant.x || 0) + 75;
+    const toX = (toParticipant.x || 0) + 60;
     const toY = (toParticipant.y || 0) + 30;
 
     // Check if there's a complementary flow (billing vs delivery between same participants)
@@ -207,7 +271,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
 
     // If there's a complementary flow, offset this one to prevent overlap
     if (hasComplementaryFlow) {
-      const offset = flow.type === 'billing' ? -10 : 10;
+      const offset = flow.type === 'billing' ? -15 : 15;
       const midX = (fromX + toX) / 2;
       const midY = (fromY + toY) / 2;
       
@@ -242,7 +306,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
           <Button
             variant="outline"
             onClick={autoGenerateFlows}
-            disabled={participants.filter(p => p.role).length < 2}
+            disabled={participants.length < 2}
           >
             Auto-Generate Flows
           </Button>

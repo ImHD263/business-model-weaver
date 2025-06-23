@@ -7,7 +7,7 @@ import { ParticipantManager } from '@/components/ParticipantManager';
 import { RoleQuestionnaire } from '@/components/RoleQuestionnaire';
 import { BusinessModelDiagram } from '@/components/BusinessModelDiagram';
 import { FinancialManager } from '@/components/FinancialManager';
-import { CodeGenerator } from '@/components/CodeGenerator';
+import { ImageWorkflowCreator } from '@/components/ImageWorkflowCreator';
 import { NotificationPane } from '@/components/NotificationPane';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
 
@@ -61,7 +61,7 @@ const Index = () => {
     'Role Assignment',
     'Relationship Mapping',
     'Financial Details',
-    'Code Generation'
+    'Image Workflow Creation'
   ];
 
   const handleNext = () => {
@@ -137,7 +137,7 @@ const Index = () => {
         );
       case 4:
         return (
-          <CodeGenerator
+          <ImageWorkflowCreator
             businessModel={businessModel}
             onNotification={addNotification}
           />
