@@ -1,8 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Download, FileImage, Image } from 'lucide-react';
 import type { BusinessModel } from '@/pages/Index';
@@ -23,7 +23,7 @@ export const ImageWorkflowCreator: React.FC<ImageWorkflowCreatorProps> = ({
   const exportFormats = [
     { value: 'png', label: 'PNG Image', icon: '🖼️' },
     { value: 'jpg', label: 'JPG Image', icon: '📷' },
-    { value: pdf', label: 'PDF Document', icon: '📄' }
+    { value: 'pdf', label: 'PDF Document', icon: '📄' }
   ];
 
   const drawWorkflowToCanvas = () => {
