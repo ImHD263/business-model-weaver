@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Save } from 'lucide-react';
 import type { Participant, Flow } from '@/pages/Index';
 
@@ -26,7 +27,12 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
 }) => {
   const [draggedParticipant, setDraggedParticipant] = useState<string | null>(null);
   const [isFlowDialogOpen, setIsFlowDialogOpen] = useState(false);
-  const [newFlow, setNewFlow] = useState({ from: '', to: '', type: 'billing' as 'billing' | 'delivery', label: '' });
+  const [newFlow, setNewFlow] = useState({ 
+    from: '', 
+    to: '', 
+    types: { billing: false, delivery: false },
+    label: '' 
+  });
   const diagramRef = useRef<HTMLDivElement>(null);
 
   // Initialize participant positions if not set
@@ -42,16 +48,24 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     }
   }, [participants, onUpdateParticipants]);
 
-  const handleDragStart = (participantId: string) => {
+  const handleDragStart = (e: React.DragEvent, participantId: string) => {
     setDraggedParticipant(participantId);
+    e.dataTransfer.setData('text/plain', participantId);
   };
 
-  const handleDragEnd = (e: React.DragEvent, participantId: string) => {
-    if (!diagramRef.current) return;
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const participantId = e.dataTransfer.getData('text/plain');
+    
+    if (!diagramRef.current || !participantId) return;
 
     const rect = diagramRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = Math.max(0, Math.min(e.clientX - rect.left - 75, rect.width - 150)); // Keep within bounds
+    const y = Math.max(0, Math.min(e.clientY - rect.top - 30, rect.height - 80)); // Keep within bounds
 
     const updatedParticipants = participants.map(p =>
       p.id === participantId ? { ...p, x, y } : p
@@ -60,7 +74,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     setDraggedParticipant(null);
   };
 
-  const createFlow = () => {
+  const createFlows = () => {
     if (!newFlow.from || !newFlow.to) {
       onNotification('Please select both source and target participants');
       return;
@@ -71,18 +85,38 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
       return;
     }
 
-    const flow: Flow = {
-      id: Date.now().toString(),
-      from: newFlow.from,
-      to: newFlow.to,
-      type: newFlow.type,
-      label: newFlow.label || `${newFlow.type} flow`
-    };
+    if (!newFlow.types.billing && !newFlow.types.delivery) {
+      onNotification('Please select at least one flow type');
+      return;
+    }
 
-    onUpdateFlows([...flows, flow]);
-    onNotification(`${newFlow.type} flow created successfully`);
+    const newFlows: Flow[] = [];
+    const timestamp = Date.now();
+
+    if (newFlow.types.billing) {
+      newFlows.push({
+        id: `billing-${timestamp}`,
+        from: newFlow.from,
+        to: newFlow.to,
+        type: 'billing',
+        label: newFlow.label || 'Billing flow'
+      });
+    }
+
+    if (newFlow.types.delivery) {
+      newFlows.push({
+        id: `delivery-${timestamp}`,
+        from: newFlow.from,
+        to: newFlow.to,
+        type: 'delivery',
+        label: newFlow.label || 'Delivery flow'
+      });
+    }
+
+    onUpdateFlows([...flows, ...newFlows]);
+    onNotification(`Created ${newFlows.length} flow(s) successfully`);
     setIsFlowDialogOpen(false);
-    setNewFlow({ from: '', to: '', type: 'billing', label: '' });
+    setNewFlow({ from: '', to: '', types: { billing: false, delivery: false }, label: '' });
   };
 
   const deleteFlow = (flowId: string) => {
@@ -163,6 +197,36 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     const toX = (toParticipant.x || 0) + 75;
     const toY = (toParticipant.y || 0) + 30;
 
+    // Check if there's a complementary flow (billing vs delivery between same participants)
+    const hasComplementaryFlow = flows.some(f => 
+      f.id !== flow.id &&
+      f.from === flow.from && 
+      f.to === flow.to && 
+      f.type !== flow.type
+    );
+
+    // If there's a complementary flow, offset this one to prevent overlap
+    if (hasComplementaryFlow) {
+      const offset = flow.type === 'billing' ? -10 : 10;
+      const midX = (fromX + toX) / 2;
+      const midY = (fromY + toY) / 2;
+      
+      // Calculate perpendicular offset
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      
+      if (length > 0) {
+        const perpX = -dy / length * offset;
+        const perpY = dx / length * offset;
+        
+        const controlX = midX + perpX;
+        const controlY = midY + perpY;
+        
+        return `M ${fromX} ${fromY} Q ${controlX} ${controlY} ${toX} ${toY}`;
+      }
+    }
+
     return `M ${fromX} ${fromY} L ${toX} ${toY}`;
   };
 
@@ -192,7 +256,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Flow</DialogTitle>
+                <DialogTitle>Create New Flow(s)</DialogTitle>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -225,21 +289,40 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                 </div>
                 
                 <div>
-                  <Label>Flow Type</Label>
-                  <Select value={newFlow.type} onValueChange={(value: 'billing' | 'delivery') => setNewFlow({...newFlow, type: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="billing">Billing Flow</SelectItem>
-                      <SelectItem value="delivery">Delivery Flow</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Flow Types</Label>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="billing"
+                        checked={newFlow.types.billing}
+                        onCheckedChange={(checked) => 
+                          setNewFlow({
+                            ...newFlow, 
+                            types: { ...newFlow.types, billing: !!checked }
+                          })
+                        }
+                      />
+                      <Label htmlFor="billing">Billing Flow</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="delivery"
+                        checked={newFlow.types.delivery}
+                        onCheckedChange={(checked) => 
+                          setNewFlow({
+                            ...newFlow, 
+                            types: { ...newFlow.types, delivery: !!checked }
+                          })
+                        }
+                      />
+                      <Label htmlFor="delivery">Delivery Flow</Label>
+                    </div>
+                  </div>
                 </div>
                 
-                <Button onClick={createFlow} className="w-full">
+                <Button onClick={createFlows} className="w-full">
                   <Save className="w-4 h-4 mr-2" />
-                  Create Flow
+                  Create Flow(s)
                 </Button>
               </div>
             </DialogContent>
@@ -267,7 +350,8 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
         <div
           ref={diagramRef}
           className="relative w-full h-96 bg-gray-50 rounded border-2 border-dashed border-gray-200 overflow-hidden"
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
           {participants.length === 0 ? (
             <div className="flex items-center justify-center h-full">
@@ -312,11 +396,11 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                   style={{
                     left: participant.x || 0,
                     top: participant.y || 0,
-                    transform: draggedParticipant === participant.id ? 'scale(1.05)' : 'scale(1)'
+                    transform: draggedParticipant === participant.id ? 'scale(1.05)' : 'scale(1)',
+                    zIndex: draggedParticipant === participant.id ? 10 : 1
                   }}
                   draggable
-                  onDragStart={() => handleDragStart(participant.id)}
-                  onDragEnd={(e) => handleDragEnd(e, participant.id)}
+                  onDragStart={(e) => handleDragStart(e, participant.id)}
                 >
                   <div
                     className="w-32 h-16 rounded-lg border-2 border-white shadow-lg flex flex-col items-center justify-center text-white text-xs font-semibold p-2"
