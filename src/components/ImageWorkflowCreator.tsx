@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -214,8 +215,8 @@ export const ImageWorkflowCreator: React.FC<ImageWorkflowCreatorProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Create image from data URL
-    const img = new Image();
+    // Create image from data URL - Fixed the constructor call
+    const img = document.createElement('img');
     img.onload = () => {
       // Scale and center the image
       const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.9;
