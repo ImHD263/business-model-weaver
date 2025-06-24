@@ -27,62 +27,58 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     { value: 'pdf', label: 'PDF Document', icon: '📄' }
   ];
 
-  const exportAsPDF = async (imageDataUrl: string) => {
+  const exportAsPDF = async (canvas: HTMLCanvasElement) => {
     try {
-      // Create a new canvas for PDF layout
+      // Create a PDF-sized canvas (A4 dimensions at 150 DPI)
       const pdfCanvas = document.createElement('canvas');
       const ctx = pdfCanvas.getContext('2d');
       
-      if (!ctx) throw new Error('Cannot create canvas context');
+      if (!ctx) throw new Error('Cannot create PDF canvas context');
       
-      // A4 dimensions at 150 DPI for better quality
-      pdfCanvas.width = 1240;  // A4 width at 150 DPI
-      pdfCanvas.height = 1754; // A4 height at 150 DPI
+      // A4 dimensions at 150 DPI
+      pdfCanvas.width = 1240;
+      pdfCanvas.height = 1754;
       
       // Fill white background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
       
-      // Load the workflow image
-      const img = new Image();
-      img.onload = () => {
-        // Calculate scaling to fit in PDF with margins
-        const margin = 60;
-        const maxWidth = pdfCanvas.width - (margin * 2);
-        const maxHeight = pdfCanvas.height - (margin * 2);
-        
-        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
-        const scaledWidth = img.width * scale;
-        const scaledHeight = img.height * scale;
-        
-        // Center the image
-        const x = (pdfCanvas.width - scaledWidth) / 2;
-        const y = (pdfCanvas.height - scaledHeight) / 2;
-        
-        ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-        
-        // Convert to blob and download
+      // Calculate scaling to fit workflow in PDF with margins
+      const margin = 60;
+      const maxWidth = pdfCanvas.width - (margin * 2);
+      const maxHeight = pdfCanvas.height - (margin * 2);
+      
+      const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+      const scaledWidth = canvas.width * scale;
+      const scaledHeight = canvas.height * scale;
+      
+      // Center the workflow
+      const x = (pdfCanvas.width - scaledWidth) / 2;
+      const y = (pdfCanvas.height - scaledHeight) / 2;
+      
+      ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+      
+      // Convert to blob and download
+      return new Promise<void>((resolve, reject) => {
         pdfCanvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'business-model-workflow.png'; // Note: This creates a PNG, not actual PDF
+            link.download = 'business-model-workflow.pdf';
             link.click();
             URL.revokeObjectURL(url);
-            onNotification('Workflow exported as PDF-sized PNG successfully');
+            onNotification('Workflow exported as PDF successfully');
+            resolve();
+          } else {
+            reject(new Error('Failed to create PDF blob'));
           }
         }, 'image/png');
-      };
-      
-      img.onerror = () => {
-        throw new Error('Failed to load image for PDF export');
-      };
-      
-      img.src = imageDataUrl;
+      });
     } catch (error) {
       console.error('PDF export error:', error);
       onNotification('Failed to export as PDF');
+      throw error;
     }
   };
 
@@ -100,30 +96,29 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         throw new Error('Failed to create workflow canvas');
       }
 
-      let dataUrl: string;
-      let filename: string;
-
-      if (selectedFormat === 'png') {
-        dataUrl = canvas.toDataURL('image/png');
-        filename = 'business-model-workflow.png';
-      } else if (selectedFormat === 'jpg') {
-        dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        filename = 'business-model-workflow.jpg';
+      if (selectedFormat === 'pdf') {
+        await exportAsPDF(canvas);
       } else {
-        // For PDF export
-        dataUrl = canvas.toDataURL('image/png');
-        await exportAsPDF(dataUrl);
-        setIsExporting(false);
-        return;
+        // Export as image
+        let dataUrl: string;
+        let filename: string;
+
+        if (selectedFormat === 'png') {
+          dataUrl = canvas.toDataURL('image/png');
+          filename = 'business-model-workflow.png';
+        } else {
+          dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          filename = 'business-model-workflow.jpg';
+        }
+
+        // Download the image
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+
+        onNotification(`Workflow exported as ${selectedFormat.toUpperCase()} successfully`);
       }
-
-      // Download the image
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = dataUrl;
-      link.click();
-
-      onNotification(`Workflow exported as ${selectedFormat.toUpperCase()} successfully`);
     } catch (error) {
       console.error('Export error:', error);
       onNotification('Failed to export workflow. Please try again.');

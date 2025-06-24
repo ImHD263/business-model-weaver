@@ -49,7 +49,7 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
 
     const updatedParticipants = businessModel.participants.map(p => 
       p.id === draggedParticipant 
-        ? { ...p, x: newX * 4, y: newY * 4 } // Scale back up for canvas export
+        ? { ...p, x: newX, y: newY }
         : p
     );
 
@@ -67,10 +67,10 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
     
     if (!fromParticipant || !toParticipant) return '';
 
-    const fromX = ((fromParticipant.x || 0) / 4) + 100;
-    const fromY = ((fromParticipant.y || 0) / 4) + 40;
-    const toX = ((toParticipant.x || 0) / 4) + 100;
-    const toY = ((toParticipant.y || 0) / 4) + 40;
+    const fromX = (fromParticipant.x || 0) + 100;
+    const fromY = (fromParticipant.y || 0) + 40;
+    const toX = (toParticipant.x || 0) + 100;
+    const toY = (toParticipant.y || 0) + 40;
 
     // Check for complementary flows and create curved paths to avoid overlap
     const hasComplementaryFlow = businessModel.flows.some(f => 
@@ -101,6 +101,53 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
     }
 
     return `M ${fromX} ${fromY} L ${toX} ${toY}`;
+  };
+
+  const getFlowMidpoint = (flow: any) => {
+    const fromParticipant = businessModel.participants.find(p => p.id === flow.from);
+    const toParticipant = businessModel.participants.find(p => p.id === flow.to);
+    
+    if (!fromParticipant || !toParticipant) return { x: 0, y: 0 };
+
+    const fromX = (fromParticipant.x || 0) + 100;
+    const fromY = (fromParticipant.y || 0) + 40;
+    const toX = (toParticipant.x || 0) + 100;
+    const toY = (toParticipant.y || 0) + 40;
+
+    // Check for complementary flows
+    const hasComplementaryFlow = businessModel.flows.some(f => 
+      f.id !== flow.id &&
+      f.from === flow.from && 
+      f.to === flow.to && 
+      f.type !== flow.type
+    );
+
+    if (hasComplementaryFlow) {
+      const offset = flow.type === 'billing' ? -15 : 15;
+      const midX = (fromX + toX) / 2;
+      const midY = (fromY + toY) / 2;
+      
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      
+      if (length > 0) {
+        const perpX = -dy / length * offset;
+        const perpY = dx / length * offset;
+        
+        return { x: midX + perpX, y: midY + perpY };
+      }
+    }
+
+    return { x: (fromX + toX) / 2, y: (fromY + toY) / 2 };
+  };
+
+  const getFlowFinancialInfo = (flow: any) => {
+    if (flow.type === 'billing') {
+      const fromFinancial = getParticipantFinancialInfo(flow.from);
+      return fromFinancial;
+    }
+    return null;
   };
 
   return (
@@ -151,17 +198,14 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
             {/* Participants */}
             {businessModel.participants.map((participant, index) => {
               const financialInfo = getParticipantFinancialInfo(participant.id);
-              const x = (participant.x || (100 + (index % 3) * 250)) / 4;
-              const y = (participant.y || (100 + Math.floor(index / 3) * 150)) / 4;
+              const x = participant.x || (100 + (index % 3) * 250);
+              const y = participant.y || (100 + Math.floor(index / 3) * 150);
               
               return (
                 <div
                   key={participant.id}
                   className={`absolute group cursor-move select-none ${draggedParticipant === participant.id ? 'z-10' : ''}`}
-                  style={{
-                    left: x,
-                    top: y,
-                  }}
+                  style={{ left: x, top: y }}
                   onMouseDown={(e) => handleMouseDown(e, participant.id)}
                 >
                   <div
@@ -189,17 +233,32 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
                       </div>
                     )}
                   </div>
+                </div>
+              );
+            })}
 
-                  {/* Enhanced tooltip on hover */}
-                  {financialInfo && (
-                    <div className="absolute invisible group-hover:visible bg-black text-white text-xs rounded p-2 -top-20 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap">
-                      <div>Revenue: {financialInfo.revenue}</div>
-                      <div>Pricing: {financialInfo.pricingType}</div>
-                      <div>Billing To: {financialInfo.billingTo}</div>
-                      {financialInfo.whtApplicable && <div>WHT Applicable</div>}
-                      {financialInfo.vatGstApplicable && <div>VAT/GST Applicable</div>}
-                    </div>
-                  )}
+            {/* Financial details on flows */}
+            {businessModel.flows.map((flow) => {
+              const financialInfo = getFlowFinancialInfo(flow);
+              if (!financialInfo) return null;
+
+              const midpoint = getFlowMidpoint(flow);
+              
+              return (
+                <div
+                  key={`${flow.id}-financial`}
+                  className="absolute pointer-events-none z-10"
+                  style={{
+                    left: midpoint.x - 60,
+                    top: midpoint.y - 25,
+                  }}
+                >
+                  <div className="bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-lg text-xs">
+                    <div className="font-semibold text-green-600">{financialInfo.revenue}</div>
+                    <div className="text-gray-600">{financialInfo.pricingType}</div>
+                    {financialInfo.whtApplicable && <div className="text-red-500">WHT</div>}
+                    {financialInfo.vatGstApplicable && <div className="text-blue-500">VAT/GST</div>}
+                  </div>
                 </div>
               );
             })}
@@ -226,9 +285,7 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
         
         <div className="text-xs text-gray-600 space-y-1">
           <div>💡 Drag participants to reposition them</div>
-          {businessModel.financialInfo.length > 0 && (
-            <div>💡 Hover over participants to see financial details</div>
-          )}
+          <div>💡 Financial details are shown on billing flows</div>
         </div>
       </div>
     </Card>

@@ -7,7 +7,7 @@ export const useWorkflowCanvas = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Set canvas size to match preview proportions
+    // Set canvas size to match preview proportions exactly
     canvas.width = 1600;
     canvas.height = 1200;
 
@@ -26,68 +26,51 @@ export const useWorkflowCanvas = () => {
       return businessModel.financialInfo.find(info => info.participantId === participantId);
     };
 
-    // Draw participants with same positioning as preview
+    // Scale factor to match preview (4x scale for export)
+    const scale = 4;
+
+    // Draw participants with exact same positioning as preview
     businessModel.participants.forEach((participant, index) => {
-      const x = participant.x || (100 + (index % 3) * 250);
-      const y = participant.y || (100 + Math.floor(index / 3) * 150);
+      const x = (participant.x || (100 + (index % 3) * 250)) * scale;
+      const y = (participant.y || (100 + Math.floor(index / 3) * 150)) * scale + 80;
       const financialInfo = getParticipantFinancialInfo(participant.id);
 
-      // Draw participant box - larger for export
+      // Draw participant box - scaled for export
       ctx.fillStyle = participant.color || '#3b82f6';
-      ctx.fillRect(x, y + 80, 200, 80);
+      ctx.fillRect(x, y, 200 * scale, 80 * scale);
 
       // Draw border
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y + 80, 200, 80);
+      ctx.lineWidth = 3 * scale;
+      ctx.strokeRect(x, y, 200 * scale, 80 * scale);
 
       // Draw participant name (entity name)
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 16px Arial';
+      ctx.font = `bold ${16 * scale}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText(participant.entityName, x + 100, y + 105);
+      ctx.fillText(participant.entityName, x + (100 * scale), y + (25 * scale));
       
       // Draw role
       if (participant.role) {
-        ctx.font = '14px Arial';
-        ctx.fillText(participant.role, x + 100, y + 125);
+        ctx.font = `${14 * scale}px Arial`;
+        ctx.fillText(participant.role, x + (100 * scale), y + (45 * scale));
       }
       
       // Draw country in parentheses
-      ctx.font = '12px Arial';
-      ctx.fillText(`(${participant.country})`, x + 100, y + 145);
+      ctx.font = `${12 * scale}px Arial`;
+      ctx.fillText(`(${participant.country})`, x + (100 * scale), y + (65 * scale));
 
       // Draw financial indicator
       if (financialInfo && financialInfo.revenue) {
         ctx.fillStyle = '#22c55e';
         ctx.beginPath();
-        ctx.arc(x + 185, y + 85, 8, 0, 2 * Math.PI);
+        ctx.arc(x + (185 * scale), y + (15 * scale), 8 * scale, 0, 2 * Math.PI);
         ctx.fill();
         
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px Arial';
+        ctx.font = `bold ${10 * scale}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText('$', x + 185, y + 89);
-      }
-
-      // Add financial details below participant if available
-      if (financialInfo) {
-        ctx.fillStyle = '#374151';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        let yOffset = 175;
-        
-        if (financialInfo.revenue) {
-          ctx.fillText(`Revenue: ${financialInfo.revenue}`, x + 100, y + yOffset);
-          yOffset += 15;
-        }
-        if (financialInfo.pricingType) {
-          ctx.fillText(`Pricing: ${financialInfo.pricingType}`, x + 100, y + yOffset);
-          yOffset += 15;
-        }
-        if (financialInfo.billingTo) {
-          ctx.fillText(`Billing: ${financialInfo.billingTo}`, x + 100, y + yOffset);
-        }
+        ctx.fillText('$', x + (185 * scale), y + (19 * scale));
       }
     });
 
@@ -98,10 +81,10 @@ export const useWorkflowCanvas = () => {
       
       if (!fromParticipant || !toParticipant) return;
 
-      const fromX = (fromParticipant.x || 0) + 100;
-      const fromY = (fromParticipant.y || 0) + 120;
-      const toX = (toParticipant.x || 0) + 100;
-      const toY = (toParticipant.y || 0) + 120;
+      const fromX = ((fromParticipant.x || 0) + 100) * scale;
+      const fromY = ((fromParticipant.y || 0) + 40) * scale + 80;
+      const toX = ((toParticipant.x || 0) + 100) * scale;
+      const toY = ((toParticipant.y || 0) + 40) * scale + 80;
 
       // Check for complementary flows
       const hasComplementaryFlow = businessModel.flows.some(f => 
@@ -113,11 +96,13 @@ export const useWorkflowCanvas = () => {
 
       ctx.beginPath();
       
+      let midX, midY;
+      
       if (hasComplementaryFlow) {
         // Draw curved path
-        const offset = flow.type === 'billing' ? -60 : 60;
-        const midX = (fromX + toX) / 2;
-        const midY = (fromY + toY) / 2;
+        const offset = (flow.type === 'billing' ? -15 : 15) * scale;
+        midX = (fromX + toX) / 2;
+        midY = (fromY + toY) / 2;
         
         const dx = toX - fromX;
         const dy = toY - fromY;
@@ -132,11 +117,16 @@ export const useWorkflowCanvas = () => {
           
           ctx.moveTo(fromX, fromY);
           ctx.quadraticCurveTo(controlX, controlY, toX, toY);
+          
+          midX = controlX;
+          midY = controlY;
         }
       } else {
         // Draw straight line
         ctx.moveTo(fromX, fromY);
         ctx.lineTo(toX, toY);
+        midX = (fromX + toX) / 2;
+        midY = (fromY + toY) / 2;
       }
       
       if (flow.type === 'billing') {
@@ -144,15 +134,15 @@ export const useWorkflowCanvas = () => {
         ctx.setLineDash([]);
       } else {
         ctx.strokeStyle = '#3b82f6';
-        ctx.setLineDash([10, 10]);
+        ctx.setLineDash([10 * scale, 10 * scale]);
       }
       
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 4 * scale;
       ctx.stroke();
       
       // Draw arrow
       const angle = Math.atan2(toY - fromY, toX - fromX);
-      const arrowLength = 20;
+      const arrowLength = 20 * scale;
       
       ctx.beginPath();
       ctx.moveTo(toX, toY);
@@ -169,55 +159,93 @@ export const useWorkflowCanvas = () => {
       
       // Reset line dash
       ctx.setLineDash([]);
+
+      // Draw financial details on billing flows
+      if (flow.type === 'billing') {
+        const financialInfo = getParticipantFinancialInfo(flow.from);
+        if (financialInfo && financialInfo.revenue) {
+          // Draw background for financial info
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#d1d5db';
+          ctx.lineWidth = 2 * scale;
+          const boxWidth = 120 * scale;
+          const boxHeight = 60 * scale;
+          const boxX = midX - boxWidth / 2;
+          const boxY = midY - boxHeight / 2;
+          
+          ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+          ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+          
+          // Draw financial details
+          ctx.fillStyle = '#059669';
+          ctx.font = `bold ${12 * scale}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.fillText(financialInfo.revenue, midX, boxY + (18 * scale));
+          
+          ctx.fillStyle = '#374151';
+          ctx.font = `${10 * scale}px Arial`;
+          ctx.fillText(financialInfo.pricingType, midX, boxY + (32 * scale));
+          
+          let yOffset = 46;
+          if (financialInfo.whtApplicable) {
+            ctx.fillStyle = '#dc2626';
+            ctx.fillText('WHT', midX - (20 * scale), boxY + (yOffset * scale));
+          }
+          if (financialInfo.vatGstApplicable) {
+            ctx.fillStyle = '#2563eb';
+            ctx.fillText('VAT/GST', midX + (20 * scale), boxY + (yOffset * scale));
+          }
+        }
+      }
     });
 
     // Draw enhanced legend
-    const legendY = canvas.height - 150;
+    const legendY = canvas.height - 150 * scale;
     ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 18px Arial';
+    ctx.font = `bold ${18 * scale}px Arial`;
     ctx.textAlign = 'left';
-    ctx.fillText('Legend:', 50, legendY);
+    ctx.fillText('Legend:', 50 * scale, legendY);
 
     // Billing flow legend
     ctx.beginPath();
-    ctx.moveTo(50, legendY + 25);
-    ctx.lineTo(120, legendY + 25);
+    ctx.moveTo(50 * scale, legendY + (25 * scale));
+    ctx.lineTo(120 * scale, legendY + (25 * scale));
     ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 4 * scale;
     ctx.setLineDash([]);
     ctx.stroke();
     
     ctx.fillStyle = '#1f2937';
-    ctx.font = '16px Arial';
-    ctx.fillText('Billing Flow', 130, legendY + 30);
+    ctx.font = `${16 * scale}px Arial`;
+    ctx.fillText('Billing Flow', 130 * scale, legendY + (30 * scale));
 
     // Delivery flow legend
     ctx.beginPath();
-    ctx.moveTo(50, legendY + 50);
-    ctx.lineTo(120, legendY + 50);
+    ctx.moveTo(50 * scale, legendY + (50 * scale));
+    ctx.lineTo(120 * scale, legendY + (50 * scale));
     ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([10, 10]);
+    ctx.lineWidth = 4 * scale;
+    ctx.setLineDash([10 * scale, 10 * scale]);
     ctx.stroke();
     
-    ctx.fillText('Delivery Flow', 130, legendY + 55);
+    ctx.fillText('Delivery Flow', 130 * scale, legendY + (55 * scale));
 
     // Financial indicator legend
     if (businessModel.financialInfo.some(info => info.revenue)) {
       ctx.fillStyle = '#22c55e';
       ctx.beginPath();
-      ctx.arc(65, legendY + 75, 8, 0, 2 * Math.PI);
+      ctx.arc(65 * scale, legendY + (75 * scale), 8 * scale, 0, 2 * Math.PI);
       ctx.fill();
       
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px Arial';
+      ctx.font = `bold ${10 * scale}px Arial`;
       ctx.textAlign = 'center';
-      ctx.fillText('$', 65, legendY + 79);
+      ctx.fillText('$', 65 * scale, legendY + (79 * scale));
       
       ctx.fillStyle = '#1f2937';
-      ctx.font = '16px Arial';
+      ctx.font = `${16 * scale}px Arial`;
       ctx.textAlign = 'left';
-      ctx.fillText('Has Revenue Data', 80, legendY + 80);
+      ctx.fillText('Has Revenue Data', 80 * scale, legendY + (80 * scale));
     }
 
     return canvas;
