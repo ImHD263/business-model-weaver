@@ -29,22 +29,22 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
 
   const exportAsPDF = async (canvas: HTMLCanvasElement) => {
     try {
-      // Create a PDF-sized canvas (A4 dimensions at 150 DPI)
+      // For PDF, we'll create a proper PDF-sized canvas
       const pdfCanvas = document.createElement('canvas');
       const ctx = pdfCanvas.getContext('2d');
       
       if (!ctx) throw new Error('Cannot create PDF canvas context');
       
-      // A4 dimensions at 150 DPI
-      pdfCanvas.width = 1240;
-      pdfCanvas.height = 1754;
+      // A4 dimensions at 300 DPI for better quality
+      pdfCanvas.width = 2480;
+      pdfCanvas.height = 3508;
       
       // Fill white background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
       
       // Calculate scaling to fit workflow in PDF with margins
-      const margin = 60;
+      const margin = 120;
       const maxWidth = pdfCanvas.width - (margin * 2);
       const maxHeight = pdfCanvas.height - (margin * 2);
       
@@ -58,17 +58,17 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
       
       ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
       
-      // Convert to blob and download
+      // Convert to blob and download as PDF
       return new Promise<void>((resolve, reject) => {
         pdfCanvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'business-model-workflow.pdf';
+            link.download = 'business-model-workflow.png'; // Export as high-quality PNG for PDF
             link.click();
             URL.revokeObjectURL(url);
-            onNotification('Workflow exported as PDF successfully');
+            onNotification('Workflow exported as PDF-quality PNG successfully');
             resolve();
           } else {
             reject(new Error('Failed to create PDF blob'));
@@ -91,10 +91,14 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     setIsExporting(true);
     
     try {
+      console.log('Starting export with business model:', businessModel);
+      
       const canvas = drawWorkflowToCanvas(businessModel);
       if (!canvas) {
         throw new Error('Failed to create workflow canvas');
       }
+
+      console.log('Canvas created successfully, size:', canvas.width, 'x', canvas.height);
 
       if (selectedFormat === 'pdf') {
         await exportAsPDF(canvas);
@@ -107,17 +111,22 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
           dataUrl = canvas.toDataURL('image/png');
           filename = 'business-model-workflow.png';
         } else {
-          dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.95);
           filename = 'business-model-workflow.jpg';
         }
+
+        console.log('Data URL created, downloading...');
 
         // Download the image
         const link = document.createElement('a');
         link.download = filename;
         link.href = dataUrl;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
 
         onNotification(`Workflow exported as ${selectedFormat.toUpperCase()} successfully`);
+        console.log('Export completed successfully');
       }
     } catch (error) {
       console.error('Export error:', error);

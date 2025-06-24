@@ -142,14 +142,6 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
     return { x: (fromX + toX) / 2, y: (fromY + toY) / 2 };
   };
 
-  const getFlowFinancialInfo = (flow: any) => {
-    if (flow.type === 'billing') {
-      const fromFinancial = getParticipantFinancialInfo(flow.from);
-      return fromFinancial;
-    }
-    return null;
-  };
-
   return (
     <Card className="p-4">
       <h4 className="font-semibold mb-3">Workflow Preview</h4>
@@ -198,8 +190,8 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
             {/* Participants */}
             {businessModel.participants.map((participant, index) => {
               const financialInfo = getParticipantFinancialInfo(participant.id);
-              const x = participant.x || (100 + (index % 3) * 250);
-              const y = participant.y || (100 + Math.floor(index / 3) * 150);
+              const x = participant.x !== undefined ? participant.x : (50 + (index % 3) * 180);
+              const y = participant.y !== undefined ? participant.y : (50 + Math.floor(index / 3) * 120);
               
               return (
                 <div
@@ -223,13 +215,11 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
                     </div>
                     
                     {/* Financial indicators */}
-                    {financialInfo && (
+                    {financialInfo && financialInfo.revenue && (
                       <div className="absolute -top-2 -right-2 flex gap-1">
-                        {financialInfo.revenue && (
-                          <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                            <DollarSign className="w-3 h-3 text-white" />
-                          </div>
-                        )}
+                        <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                          <DollarSign className="w-3 h-3 text-white" />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -237,10 +227,12 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
               );
             })}
 
-            {/* Financial details on flows */}
+            {/* Always show financial details on billing flows */}
             {businessModel.flows.map((flow) => {
-              const financialInfo = getFlowFinancialInfo(flow);
-              if (!financialInfo) return null;
+              if (flow.type !== 'billing') return null;
+              
+              const financialInfo = getParticipantFinancialInfo(flow.from);
+              if (!financialInfo || !financialInfo.revenue) return null;
 
               const midpoint = getFlowMidpoint(flow);
               
@@ -250,14 +242,16 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
                   className="absolute pointer-events-none z-10"
                   style={{
                     left: midpoint.x - 60,
-                    top: midpoint.y - 25,
+                    top: midpoint.y - 30,
                   }}
                 >
-                  <div className="bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-lg text-xs">
-                    <div className="font-semibold text-green-600">{financialInfo.revenue}</div>
-                    <div className="text-gray-600">{financialInfo.pricingType}</div>
-                    {financialInfo.whtApplicable && <div className="text-red-500">WHT</div>}
-                    {financialInfo.vatGstApplicable && <div className="text-blue-500">VAT/GST</div>}
+                  <div className="bg-white border-2 border-yellow-400 rounded-lg px-3 py-2 shadow-lg text-xs min-w-[120px]">
+                    <div className="font-bold text-green-600 text-center">{financialInfo.revenue}</div>
+                    <div className="text-gray-600 text-center text-xs">{financialInfo.pricingType}</div>
+                    <div className="flex justify-center gap-2 mt-1">
+                      {financialInfo.whtApplicable && <div className="text-red-500 text-xs">WHT</div>}
+                      {financialInfo.vatGstApplicable && <div className="text-blue-500 text-xs">VAT/GST</div>}
+                    </div>
                   </div>
                 </div>
               );
@@ -285,7 +279,7 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
         
         <div className="text-xs text-gray-600 space-y-1">
           <div>💡 Drag participants to reposition them</div>
-          <div>💡 Financial details are shown on billing flows</div>
+          <div>💡 Financial details are always shown on billing flows</div>
         </div>
       </div>
     </Card>

@@ -31,8 +31,9 @@ export const useWorkflowCanvas = () => {
 
     // Draw participants with exact same positioning as preview
     businessModel.participants.forEach((participant, index) => {
-      const x = (participant.x || (100 + (index % 3) * 250)) * scale;
-      const y = (participant.y || (100 + Math.floor(index / 3) * 150)) * scale + 80;
+      // Use exact same positioning logic as preview
+      const x = (participant.x !== undefined ? participant.x : (50 + (index % 3) * 180)) * scale;
+      const y = (participant.y !== undefined ? participant.y : (50 + Math.floor(index / 3) * 120)) * scale + 80;
       const financialInfo = getParticipantFinancialInfo(participant.id);
 
       // Draw participant box - scaled for export
@@ -81,10 +82,14 @@ export const useWorkflowCanvas = () => {
       
       if (!fromParticipant || !toParticipant) return;
 
-      const fromX = ((fromParticipant.x || 0) + 100) * scale;
-      const fromY = ((fromParticipant.y || 0) + 40) * scale + 80;
-      const toX = ((toParticipant.x || 0) + 100) * scale;
-      const toY = ((toParticipant.y || 0) + 40) * scale + 80;
+      // Use exact same positioning logic as preview
+      const fromIndex = businessModel.participants.findIndex(p => p.id === flow.from);
+      const toIndex = businessModel.participants.findIndex(p => p.id === flow.to);
+      
+      const fromX = ((fromParticipant.x !== undefined ? fromParticipant.x : (50 + (fromIndex % 3) * 180)) + 100) * scale;
+      const fromY = ((fromParticipant.y !== undefined ? fromParticipant.y : (50 + Math.floor(fromIndex / 3) * 120)) + 40) * scale + 80;
+      const toX = ((toParticipant.x !== undefined ? toParticipant.x : (50 + (toIndex % 3) * 180)) + 100) * scale;
+      const toY = ((toParticipant.y !== undefined ? toParticipant.y : (50 + Math.floor(toIndex / 3) * 120)) + 40) * scale + 80;
 
       // Check for complementary flows
       const hasComplementaryFlow = businessModel.flows.some(f => 
@@ -99,7 +104,7 @@ export const useWorkflowCanvas = () => {
       let midX, midY;
       
       if (hasComplementaryFlow) {
-        // Draw curved path
+        // Draw curved path - same logic as preview
         const offset = (flow.type === 'billing' ? -15 : 15) * scale;
         midX = (fromX + toX) / 2;
         midY = (fromY + toY) / 2;
@@ -160,13 +165,13 @@ export const useWorkflowCanvas = () => {
       // Reset line dash
       ctx.setLineDash([]);
 
-      // Draw financial details on billing flows
+      // Draw financial details on billing flows - always show like in preview
       if (flow.type === 'billing') {
         const financialInfo = getParticipantFinancialInfo(flow.from);
         if (financialInfo && financialInfo.revenue) {
-          // Draw background for financial info
+          // Draw background for financial info - same style as preview
           ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#d1d5db';
+          ctx.strokeStyle = '#facc15'; // yellow-400 border
           ctx.lineWidth = 2 * scale;
           const boxWidth = 120 * scale;
           const boxHeight = 60 * scale;
@@ -176,7 +181,7 @@ export const useWorkflowCanvas = () => {
           ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
           ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
           
-          // Draw financial details
+          // Draw financial details - same as preview
           ctx.fillStyle = '#059669';
           ctx.font = `bold ${12 * scale}px Arial`;
           ctx.textAlign = 'center';
@@ -186,14 +191,20 @@ export const useWorkflowCanvas = () => {
           ctx.font = `${10 * scale}px Arial`;
           ctx.fillText(financialInfo.pricingType, midX, boxY + (32 * scale));
           
+          // Draw tax indicators
           let yOffset = 46;
-          if (financialInfo.whtApplicable) {
-            ctx.fillStyle = '#dc2626';
-            ctx.fillText('WHT', midX - (20 * scale), boxY + (yOffset * scale));
-          }
-          if (financialInfo.vatGstApplicable) {
-            ctx.fillStyle = '#2563eb';
-            ctx.fillText('VAT/GST', midX + (20 * scale), boxY + (yOffset * scale));
+          const indicators = [];
+          if (financialInfo.whtApplicable) indicators.push({ text: 'WHT', color: '#dc2626' });
+          if (financialInfo.vatGstApplicable) indicators.push({ text: 'VAT/GST', color: '#2563eb' });
+          
+          if (indicators.length === 1) {
+            ctx.fillStyle = indicators[0].color;
+            ctx.fillText(indicators[0].text, midX, boxY + (yOffset * scale));
+          } else if (indicators.length === 2) {
+            ctx.fillStyle = indicators[0].color;
+            ctx.fillText(indicators[0].text, midX - (25 * scale), boxY + (yOffset * scale));
+            ctx.fillStyle = indicators[1].color;
+            ctx.fillText(indicators[1].text, midX + (25 * scale), boxY + (yOffset * scale));
           }
         }
       }
