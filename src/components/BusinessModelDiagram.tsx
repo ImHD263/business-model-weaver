@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,14 +34,17 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
   });
   const diagramRef = useRef<HTMLDivElement>(null);
 
-  // Initialize participant positions if not set
+  // Check if any participant lacks a role
+  const hasParticipantsWithoutRoles = participants.some(p => !p.role);
+
+  // Initialize participant positions if not set with better spacing
   useEffect(() => {
     const participantsNeedingPosition = participants.filter(p => p.x === undefined || p.y === undefined);
     if (participantsNeedingPosition.length > 0) {
       const updatedParticipants = participants.map((p, index) => ({
         ...p,
-        x: p.x ?? 100 + (index % 3) * 200,
-        y: p.y ?? 100 + Math.floor(index / 3) * 150
+        x: p.x ?? 50 + (index % 3) * 250, // Increased spacing
+        y: p.y ?? 50 + Math.floor(index / 3) * 120 // Better vertical spacing
       }));
       onUpdateParticipants(updatedParticipants);
     }
@@ -64,8 +66,8 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     if (!diagramRef.current || !participantId) return;
 
     const rect = diagramRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left - 60, rect.width - 120)); // Keep within bounds
-    const y = Math.max(0, Math.min(e.clientY - rect.top - 30, rect.height - 60)); // Keep within bounds
+    const x = Math.max(0, Math.min(e.clientX - rect.left - 80, rect.width - 160)); // Better bounds
+    const y = Math.max(0, Math.min(e.clientY - rect.top - 40, rect.height - 80));
 
     const updatedParticipants = participants.map(p =>
       p.id === participantId ? { ...p, x, y } : p
@@ -73,6 +75,8 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     onUpdateParticipants(updatedParticipants);
     setDraggedParticipant(null);
   };
+
+  // ... keep existing code (createFlows, deleteFlow, autoGenerateFlows functions)
 
   const createFlows = () => {
     if (!newFlow.from || !newFlow.to) {
@@ -256,10 +260,10 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     
     if (!fromParticipant || !toParticipant) return '';
 
-    const fromX = (fromParticipant.x || 0) + 60; // Center of participant box
-    const fromY = (fromParticipant.y || 0) + 30;
-    const toX = (toParticipant.x || 0) + 60;
-    const toY = (toParticipant.y || 0) + 30;
+    const fromX = (fromParticipant.x || 0) + 80; // Center of participant box
+    const fromY = (fromParticipant.y || 0) + 40;
+    const toX = (toParticipant.x || 0) + 80;
+    const toY = (toParticipant.y || 0) + 40;
 
     // Check if there's a complementary flow (billing vs delivery between same participants)
     const hasComplementaryFlow = flows.some(f => 
@@ -293,6 +297,27 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
 
     return `M ${fromX} ${fromY} L ${toX} ${toY}`;
   };
+
+  // Show warning if roles are missing
+  if (hasParticipantsWithoutRoles) {
+    return (
+      <div className="space-y-6">
+        <Card className="p-6 border-yellow-200 bg-yellow-50">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+              Complete Role Assignment Required
+            </h3>
+            <p className="text-yellow-700 mb-4">
+              All participants must have assigned roles before proceeding to relationship mapping.
+            </p>
+            <p className="text-sm text-yellow-600">
+              Please go back to Step 2 and assign roles to all participants.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -452,7 +477,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                 ))}
               </svg>
 
-              {/* Participants */}
+              {/* Participants - Updated layout */}
               {participants.map((participant) => (
                 <div
                   key={participant.id}
@@ -467,16 +492,21 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                   onDragStart={(e) => handleDragStart(e, participant.id)}
                 >
                   <div
-                    className="w-32 h-16 rounded-lg border-2 border-white shadow-lg flex flex-col items-center justify-center text-white text-xs font-semibold p-2"
+                    className="w-40 h-20 rounded-lg border-2 border-white shadow-lg flex flex-col items-center justify-center text-white text-sm font-semibold p-3"
                     style={{ backgroundColor: participant.color }}
                   >
-                    <div className="truncate w-full text-center">{participant.entityName}</div>
-                    <div className="text-xs opacity-90">{participant.country}</div>
-                    {participant.role && (
-                      <Badge variant="secondary" className="text-xs mt-1 bg-white text-gray-800">
-                        {participant.role.split(' ')[0]}
-                      </Badge>
-                    )}
+                    {/* Entity Name - Prominent */}
+                    <div className="text-center font-bold text-base mb-1 truncate w-full">
+                      {participant.entityName}
+                    </div>
+                    
+                    {/* Role and Country - Below */}
+                    <div className="text-center text-xs opacity-90">
+                      {participant.role && (
+                        <div className="mb-1">{participant.role}</div>
+                      )}
+                      <div>({participant.country})</div>
+                    </div>
                   </div>
                 </div>
               ))}
