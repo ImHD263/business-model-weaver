@@ -72,7 +72,6 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
     const toX = (toParticipant.x || 0) + 100;
     const toY = (toParticipant.y || 0) + 40;
 
-    // Check for complementary flows and create curved paths to avoid overlap
     const hasComplementaryFlow = businessModel.flows.some(f => 
       f.id !== flow.id &&
       f.from === flow.from && 
@@ -114,7 +113,6 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
     const toX = (toParticipant.x || 0) + 100;
     const toY = (toParticipant.y || 0) + 40;
 
-    // Check for complementary flows
     const hasComplementaryFlow = businessModel.flows.some(f => 
       f.id !== flow.id &&
       f.from === flow.from && 
@@ -214,7 +212,6 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
                       ({participant.country})
                     </div>
                     
-                    {/* Financial indicators */}
                     {financialInfo && financialInfo.revenue && (
                       <div className="absolute -top-2 -right-2 flex gap-1">
                         <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
@@ -227,7 +224,7 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
               );
             })}
 
-            {/* Always show financial details on billing flows */}
+            {/* Financial details on billing flows - hiển thị trực tiếp không cần hộp */}
             {businessModel.flows.map((flow) => {
               if (flow.type !== 'billing') return null;
               
@@ -241,16 +238,24 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
                   key={`${flow.id}-financial`}
                   className="absolute pointer-events-none z-10"
                   style={{
-                    left: midpoint.x - 60,
-                    top: midpoint.y - 30,
+                    left: midpoint.x - 40,
+                    top: midpoint.y - 20,
                   }}
                 >
-                  <div className="bg-white border-2 border-yellow-400 rounded-lg px-3 py-2 shadow-lg text-xs min-w-[120px]">
-                    <div className="font-bold text-green-600 text-center">{financialInfo.revenue}</div>
-                    <div className="text-gray-600 text-center text-xs">{financialInfo.pricingType}</div>
-                    <div className="flex justify-center gap-2 mt-1">
-                      {financialInfo.whtApplicable && <div className="text-red-500 text-xs">WHT</div>}
-                      {financialInfo.vatGstApplicable && <div className="text-blue-500 text-xs">VAT/GST</div>}
+                  <div className="text-center">
+                    <div className="font-bold text-green-600 text-xs bg-white px-2 py-1 rounded shadow">
+                      {financialInfo.revenue}
+                    </div>
+                    <div className="text-gray-600 text-xs bg-white px-1 rounded mt-1">
+                      {financialInfo.pricingType}
+                    </div>
+                    <div className="flex justify-center gap-1 mt-1">
+                      {financialInfo.whtApplicable && (
+                        <div className="text-red-500 text-xs bg-white px-1 rounded">WHT</div>
+                      )}
+                      {financialInfo.vatGstApplicable && (
+                        <div className="text-blue-500 text-xs bg-white px-1 rounded">VAT/GST</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -279,7 +284,7 @@ export const WorkflowPreview: React.FC<WorkflowPreviewProps> = ({
         
         <div className="text-xs text-gray-600 space-y-1">
           <div>💡 Drag participants to reposition them</div>
-          <div>💡 Financial details are always shown on billing flows</div>
+          <div>💡 Financial details are shown directly on billing flows</div>
         </div>
       </div>
     </Card>
