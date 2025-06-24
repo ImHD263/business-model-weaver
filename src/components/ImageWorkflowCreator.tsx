@@ -4,16 +4,18 @@ import { WorkflowSummary } from './WorkflowSummary';
 import { WorkflowPreview } from './WorkflowPreview';
 import { ExportControls } from './ExportControls';
 import { ParticipantsList } from './ParticipantsList';
-import type { BusinessModel } from '@/pages/Index';
+import type { BusinessModel, Participant } from '@/pages/Index';
 
 interface ImageWorkflowCreatorProps {
   businessModel: BusinessModel;
   onNotification: (message: string) => void;
+  onUpdateParticipants?: (participants: Participant[]) => void;
 }
 
 export const ImageWorkflowCreator: React.FC<ImageWorkflowCreatorProps> = ({
   businessModel,
-  onNotification
+  onNotification,
+  onUpdateParticipants
 }) => {
   return (
     <div className="space-y-6">
@@ -25,7 +27,10 @@ export const ImageWorkflowCreator: React.FC<ImageWorkflowCreatorProps> = ({
       </div>
 
       <WorkflowSummary businessModel={businessModel} />
-      <WorkflowPreview businessModel={businessModel} />
+      <WorkflowPreview 
+        businessModel={businessModel} 
+        onUpdateParticipants={onUpdateParticipants}
+      />
       <ExportControls businessModel={businessModel} onNotification={onNotification} />
       <ParticipantsList businessModel={businessModel} />
     </div>

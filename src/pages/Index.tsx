@@ -140,6 +140,7 @@ const Index = () => {
           <ImageWorkflowCreator
             businessModel={businessModel}
             onNotification={addNotification}
+            onUpdateParticipants={(participants) => updateBusinessModel({ participants })}
           />
         );
       default:
