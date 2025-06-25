@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Download, FileImage } from 'lucide-react';
 import { useWorkflowCanvas } from './WorkflowCanvas';
+import jsPDF from 'jspdf';
 import type { BusinessModel } from '@/pages/Index';
 
 interface ExportControlsProps {
@@ -29,54 +30,37 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
 
   const exportAsPDF = async (canvas: HTMLCanvasElement) => {
     try {
-      // Tạo PDF canvas với kích thước phù hợp
-      const pdfCanvas = document.createElement('canvas');
-      const ctx = pdfCanvas.getContext('2d');
-      
-      if (!ctx) throw new Error('Cannot create PDF canvas context');
-      
-      // A4 landscape dimensions tại 150 DPI để file nhỏ hơn nhưng vẫn chất lượng tốt
-      pdfCanvas.width = 1754; // A4 landscape width at 150 DPI
-      pdfCanvas.height = 1240; // A4 landscape height at 150 DPI
-      
-      // Fill white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-      
-      // Calculate scaling để fit workflow vào PDF với margins
-      const margin = 60;
-      const maxWidth = pdfCanvas.width - (margin * 2);
-      const maxHeight = pdfCanvas.height - (margin * 2);
-      
-      const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
-      const scaledWidth = canvas.width * scale;
-      const scaledHeight = canvas.height * scale;
-      
-      // Center the workflow
-      const x = (pdfCanvas.width - scaledWidth) / 2;
-      const y = (pdfCanvas.height - scaledHeight) / 2;
-      
-      ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
-      
-      // Export as high-quality PNG (vì browser không support PDF generation native)
-      return new Promise<void>((resolve, reject) => {
-        pdfCanvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'business-model-workflow-pdf-quality.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            onNotification('Workflow exported as PDF-quality PNG successfully');
-            resolve();
-          } else {
-            reject(new Error('Failed to create PDF blob'));
-          }
-        }, 'image/png', 1.0);
+      // Tạo PDF với jsPDF
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
       });
+
+      // A4 landscape dimensions: 297 x 210 mm
+      const pdfWidth = 297;
+      const pdfHeight = 210;
+      const margin = 10;
+
+      // Calculate scaling để fit canvas vào PDF với margins
+      const maxWidth = pdfWidth - (margin * 2);
+      const maxHeight = pdfHeight - (margin * 2);
+      
+      const scale = Math.min(maxWidth / (canvas.width * 0.264583), maxHeight / (canvas.height * 0.264583));
+      const scaledWidth = canvas.width * 0.264583 * scale; // Convert px to mm
+      const scaledHeight = canvas.height * 0.264583 * scale;
+      
+      // Center the content
+      const x = (pdfWidth - scaledWidth) / 2;
+      const y = (pdfHeight - scaledHeight) / 2;
+
+      // Add canvas to PDF
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+
+      // Save PDF
+      pdf.save('business-model-workflow.pdf');
+      onNotification('Workflow exported as PDF successfully');
     } catch (error) {
       console.error('PDF export error:', error);
       onNotification('Failed to export as PDF');
@@ -182,7 +166,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         
         <div className="text-xs text-gray-600 space-y-1">
           <p>💡 Export captures the exact layout from the workflow preview</p>
-          <p>💡 PDF exports as high-quality PNG format for better compatibility</p>
+          <p>💡 PDF exports as actual PDF document format</p>
         </div>
       </div>
     </Card>

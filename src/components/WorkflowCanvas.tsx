@@ -20,14 +20,14 @@ export const useWorkflowCanvas = () => {
       
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + 220); // Tăng width để tránh cắt text
-      maxY = Math.max(maxY, y + 100);  // Tăng height để tránh cắt text
+      maxX = Math.max(maxX, x + 220);
+      maxY = Math.max(maxY, y + 100);
     });
 
     // Thêm padding lớn hơn
     const padding = 150;
     const contentWidth = maxX - minX + (2 * padding);
-    const contentHeight = maxY - minY + (2 * padding) + 150; // +150 cho title và legend
+    const contentHeight = maxY - minY + (2 * padding) + 150;
 
     // Set canvas size to fit all content
     canvas.width = Math.max(contentWidth, 1000);
@@ -49,7 +49,7 @@ export const useWorkflowCanvas = () => {
 
     // Offset để center content
     const offsetX = -minX + padding;
-    const offsetY = -minY + padding + 80; // +80 cho title
+    const offsetY = -minY + padding + 80;
 
     // Draw participants với layout mới (role 2/3, name 1/3)
     businessModel.participants.forEach((participant, index) => {
@@ -154,7 +154,6 @@ export const useWorkflowCanvas = () => {
       const fromIndex = businessModel.participants.findIndex(p => p.id === flow.from);
       const toIndex = businessModel.participants.findIndex(p => p.id === flow.to);
       
-      // Tính toán điểm start/end từ edge của boxes
       const fromX = (fromParticipant.x !== undefined ? fromParticipant.x : (50 + (fromIndex % 3) * 250)) + offsetX;
       const fromY = (fromParticipant.y !== undefined ? fromParticipant.y : (50 + Math.floor(fromIndex / 3) * 120)) + offsetY;
       const toX = (toParticipant.x !== undefined ? toParticipant.x : (50 + (toIndex % 3) * 250)) + offsetX;
@@ -172,28 +171,28 @@ export const useWorkflowCanvas = () => {
       if (Math.abs(fromCenterX - toCenterX) > Math.abs(fromCenterY - toCenterY)) {
         // Horizontal connection
         if (fromCenterX < toCenterX) {
-          startX = fromX + 200; // Right edge
+          startX = fromX + 200;
           startY = fromCenterY;
-          endX = toX; // Left edge
+          endX = toX;
           endY = toCenterY;
         } else {
-          startX = fromX; // Left edge
+          startX = fromX;
           startY = fromCenterY;
-          endX = toX + 200; // Right edge
+          endX = toX + 200;
           endY = toCenterY;
         }
       } else {
         // Vertical connection
         if (fromCenterY < toCenterY) {
           startX = fromCenterX;
-          startY = fromY + 80; // Bottom edge
+          startY = fromY + 80;
           endX = toCenterX;
-          endY = toY; // Top edge
+          endY = toY;
         } else {
           startX = fromCenterX;
-          startY = fromY; // Top edge
+          startY = fromY;
           endX = toCenterX;
-          endY = toY + 80; // Bottom edge
+          endY = toY + 80;
         }
       }
 
@@ -265,33 +264,33 @@ export const useWorkflowCanvas = () => {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Draw financial details trên billing flows - font nhỏ hơn 1/2
+      // Draw financial details trên billing flows - font lớn hơn để dễ đọc
       if (flow.type === 'billing') {
         const financialInfo = getParticipantFinancialInfo(flow.from);
         if (financialInfo && financialInfo.revenue) {
-          // Revenue text - font nhỏ hơn 1/2
+          // Revenue text - tăng font size để dễ đọc
           ctx.fillStyle = '#059669';
-          ctx.font = 'bold 6px Arial';
+          ctx.font = 'bold 12px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(financialInfo.revenue, midX, midY - 10);
+          ctx.fillText(financialInfo.revenue, midX, midY - 15);
           
-          // Pricing type - font nhỏ hơn 1/2
+          // Pricing type - tăng font size
           ctx.fillStyle = '#374151';
-          ctx.font = '5px Arial';
-          ctx.fillText(financialInfo.pricingType, midX, midY + 2);
+          ctx.font = '10px Arial';
+          ctx.fillText(financialInfo.pricingType, midX, midY);
           
-          // Tax indicators - font nhỏ hơn 1/2
+          // Tax indicators - tăng font size
           const indicators = [];
           if (financialInfo.whtApplicable) indicators.push({ text: 'WHT', color: '#dc2626' });
           if (financialInfo.vatGstApplicable) indicators.push({ text: 'VAT/GST', color: '#2563eb' });
           
           if (indicators.length > 0) {
-            let yOffset = midY + 12;
+            let yOffset = midY + 15;
             indicators.forEach((indicator, idx) => {
-              const xOffset = indicators.length === 1 ? midX : midX + (idx === 0 ? -15 : 15);
+              const xOffset = indicators.length === 1 ? midX : midX + (idx === 0 ? -20 : 20);
               
               ctx.fillStyle = indicator.color;
-              ctx.font = '4px Arial';
+              ctx.font = '8px Arial';
               ctx.fillText(indicator.text, xOffset, yOffset);
             });
           }
