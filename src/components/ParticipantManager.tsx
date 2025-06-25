@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,7 +125,7 @@ export const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         </Button>
       </div>
 
-      {/* Add New Participant Form */}
+      {/* Add New Participant Form - Removed color selection */}
       {showAddForm && (
         <Card className="p-4 border-green-200 bg-green-50">
           <h4 className="font-semibold mb-4 text-green-800">Add New Participant</h4>
@@ -191,7 +190,7 @@ export const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         </Card>
       )}
 
-      {/* Participants List */}
+      {/* Participants List - Removed color selection from edit mode */}
       {participants.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-gray-500">No participants added yet. Click "Add Participant" to get started.</p>
@@ -201,7 +200,7 @@ export const ParticipantManager: React.FC<ParticipantManagerProps> = ({
           {participants.map((participant) => (
             <Card key={participant.id} className="p-4">
               {editingId === participant.id ? (
-                // Edit Mode
+                // Edit Mode - Removed color selection
                 <div className="space-y-4">
                   <h4 className="font-semibold text-blue-800">Edit Participant</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -261,7 +260,7 @@ export const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                   </div>
                 </div>
               ) : (
-                // Display Mode
+                // Display Mode - Removed color display
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">

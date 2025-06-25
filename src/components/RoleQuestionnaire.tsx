@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -130,22 +129,22 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
             <Card key={participant.id} className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4 flex-1">
-                  {/* Preview Box - Updated Layout */}
+                  {/* Preview Box - Fixed Layout với 2/3 role và 1/3 name */}
                   <div className="relative">
                     <div
-                      className="w-32 h-20 rounded-lg border-2 border-white shadow-lg flex flex-col text-white text-xs font-semibold overflow-hidden"
+                      className="w-40 h-24 rounded-lg border-2 border-white shadow-lg flex flex-col text-white text-sm font-semibold overflow-hidden"
                       style={{ backgroundColor: participant.color || '#6B7280' }}
                     >
-                      {/* Role Section - 2/3 with solid border */}
-                      <div className="flex-1 flex items-center justify-center border-b-2 border-white border-solid px-2">
-                        <div className="text-center leading-tight">
+                      {/* Role Section - 2/3 với đường kẻ liền */}
+                      <div className="flex-1 flex items-center justify-center border-b-2 border-white border-solid px-2 py-1">
+                        <div className="text-center leading-tight text-xs">
                           {participant.role || 'No Role'}
                         </div>
                       </div>
                       
-                      {/* Name Section - 1/3 with dashed border */}
-                      <div className="h-6 flex items-center justify-center border-t-2 border-white border-dashed px-2">
-                        <div className="text-center text-xs opacity-90 truncate">
+                      {/* Name Section - 1/3 với đường kẻ đứt */}
+                      <div className="h-8 flex items-center justify-center border-t-2 border-white border-dashed px-2">
+                        <div className="text-center text-xs opacity-90 truncate w-full">
                           {participant.entityName}
                         </div>
                       </div>

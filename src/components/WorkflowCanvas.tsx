@@ -20,18 +20,18 @@ export const useWorkflowCanvas = () => {
       
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + 200); // 200 là width của participant box
-      maxY = Math.max(maxY, y + 80);  // 80 là height của participant box
+      maxX = Math.max(maxX, x + 220); // Tăng width để tránh cắt text
+      maxY = Math.max(maxY, y + 100);  // Tăng height để tránh cắt text
     });
 
-    // Thêm padding
-    const padding = 100;
+    // Thêm padding lớn hơn
+    const padding = 150;
     const contentWidth = maxX - minX + (2 * padding);
-    const contentHeight = maxY - minY + (2 * padding) + 100; // +100 cho title và legend
+    const contentHeight = maxY - minY + (2 * padding) + 150; // +150 cho title và legend
 
     // Set canvas size to fit all content
-    canvas.width = Math.max(contentWidth, 800);
-    canvas.height = Math.max(contentHeight, 600);
+    canvas.width = Math.max(contentWidth, 1000);
+    canvas.height = Math.max(contentHeight, 800);
 
     // Clear canvas with white background
     ctx.fillStyle = '#ffffff';
@@ -49,49 +49,84 @@ export const useWorkflowCanvas = () => {
 
     // Offset để center content
     const offsetX = -minX + padding;
-    const offsetY = -minY + padding + 60; // +60 cho title
+    const offsetY = -minY + padding + 80; // +80 cho title
 
-    // Draw participants với vị trí chính xác
+    // Draw participants với layout mới (role 2/3, name 1/3)
     businessModel.participants.forEach((participant, index) => {
       const x = (participant.x !== undefined ? participant.x : (50 + (index % 3) * 250)) + offsetX;
       const y = (participant.y !== undefined ? participant.y : (50 + Math.floor(index / 3) * 120)) + offsetY;
       const financialInfo = getParticipantFinancialInfo(participant.id);
 
-      // Draw participant box với layout mới (role 2/3, name 1/3)
+      // Draw participant box với layout mới
+      const boxWidth = 200;
+      const boxHeight = 80;
+      
       ctx.fillStyle = participant.color || '#6B7280';
-      ctx.fillRect(x, y, 200, 80);
+      ctx.fillRect(x, y, boxWidth, boxHeight);
 
       // Draw border
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, 200, 80);
+      ctx.strokeRect(x, y, boxWidth, boxHeight);
 
-      // Role section (2/3 with solid border)
+      // Role section (2/3 - 53px height)
+      const roleHeight = Math.floor(boxHeight * 2 / 3);
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px Arial';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
       
-      // Draw role text
+      // Draw role text với word wrap
       const roleText = participant.role || 'No Role';
-      ctx.fillText(roleText, x + 100, y + 35);
+      const maxWidth = boxWidth - 20;
+      const words = roleText.split(' ');
+      let line = '';
+      let lineHeight = 14;
+      let currentY = y + roleHeight / 2 - 7;
+      
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line, x + boxWidth / 2, currentY);
+          line = words[n] + ' ';
+          currentY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x + boxWidth / 2, currentY);
       
       // Draw solid divider line
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(x + 20, y + 53);
-      ctx.lineTo(x + 180, y + 53);
+      ctx.moveTo(x + 20, y + roleHeight);
+      ctx.lineTo(x + boxWidth - 20, y + roleHeight);
       ctx.stroke();
 
-      // Name section (1/3 with dashed border)
-      ctx.font = '12px Arial';
-      ctx.fillText(participant.entityName, x + 100, y + 70);
+      // Name section (1/3 với dashed border)
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#ffffff';
       
-      // Draw dashed divider line (already drawn above as solid, now make it dashed)
+      // Draw name text với truncation
+      const nameText = participant.entityName;
+      let truncatedName = nameText;
+      while (ctx.measureText(truncatedName).width > maxWidth && truncatedName.length > 0) {
+        truncatedName = truncatedName.slice(0, -1);
+      }
+      if (truncatedName.length < nameText.length) {
+        truncatedName = truncatedName.slice(0, -3) + '...';
+      }
+      
+      ctx.fillText(truncatedName, x + boxWidth / 2, y + roleHeight + (boxHeight - roleHeight) / 2 + 3);
+      
+      // Draw dashed divider line
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
-      ctx.moveTo(x + 20, y + 53);
-      ctx.lineTo(x + 180, y + 53);
+      ctx.moveTo(x + 20, y + roleHeight);
+      ctx.lineTo(x + boxWidth - 20, y + roleHeight);
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -99,17 +134,17 @@ export const useWorkflowCanvas = () => {
       if (financialInfo && financialInfo.revenue) {
         ctx.fillStyle = '#22c55e';
         ctx.beginPath();
-        ctx.arc(x + 185, y + 15, 6, 0, 2 * Math.PI);
+        ctx.arc(x + boxWidth - 15, y + 15, 6, 0, 2 * Math.PI);
         ctx.fill();
         
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 8px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('$', x + 185, y + 19);
+        ctx.fillText('$', x + boxWidth - 15, y + 19);
       }
     });
 
-    // Draw flows với vị trí chính xác
+    // Draw flows với positioning tránh đè lên boxes
     businessModel.flows.forEach(flow => {
       const fromParticipant = businessModel.participants.find(p => p.id === flow.from);
       const toParticipant = businessModel.participants.find(p => p.id === flow.to);
@@ -119,10 +154,48 @@ export const useWorkflowCanvas = () => {
       const fromIndex = businessModel.participants.findIndex(p => p.id === flow.from);
       const toIndex = businessModel.participants.findIndex(p => p.id === flow.to);
       
-      const fromX = ((fromParticipant.x !== undefined ? fromParticipant.x : (50 + (fromIndex % 3) * 250)) + 100) + offsetX;
-      const fromY = ((fromParticipant.y !== undefined ? fromParticipant.y : (50 + Math.floor(fromIndex / 3) * 120)) + 40) + offsetY;
-      const toX = ((toParticipant.x !== undefined ? toParticipant.x : (50 + (toIndex % 3) * 250)) + 100) + offsetX;
-      const toY = ((toParticipant.y !== undefined ? toParticipant.y : (50 + Math.floor(toIndex / 3) * 120)) + 40) + offsetY;
+      // Tính toán điểm start/end từ edge của boxes
+      const fromX = (fromParticipant.x !== undefined ? fromParticipant.x : (50 + (fromIndex % 3) * 250)) + offsetX;
+      const fromY = (fromParticipant.y !== undefined ? fromParticipant.y : (50 + Math.floor(fromIndex / 3) * 120)) + offsetY;
+      const toX = (toParticipant.x !== undefined ? toParticipant.x : (50 + (toIndex % 3) * 250)) + offsetX;
+      const toY = (toParticipant.y !== undefined ? toParticipant.y : (50 + Math.floor(toIndex / 3) * 120)) + offsetY;
+
+      // Calculate connection points on box edges
+      const fromCenterX = fromX + 100;
+      const fromCenterY = fromY + 40;
+      const toCenterX = toX + 100;
+      const toCenterY = toY + 40;
+
+      // Determine which edge to connect from/to
+      let startX, startY, endX, endY;
+      
+      if (Math.abs(fromCenterX - toCenterX) > Math.abs(fromCenterY - toCenterY)) {
+        // Horizontal connection
+        if (fromCenterX < toCenterX) {
+          startX = fromX + 200; // Right edge
+          startY = fromCenterY;
+          endX = toX; // Left edge
+          endY = toCenterY;
+        } else {
+          startX = fromX; // Left edge
+          startY = fromCenterY;
+          endX = toX + 200; // Right edge
+          endY = toCenterY;
+        }
+      } else {
+        // Vertical connection
+        if (fromCenterY < toCenterY) {
+          startX = fromCenterX;
+          startY = fromY + 80; // Bottom edge
+          endX = toCenterX;
+          endY = toY; // Top edge
+        } else {
+          startX = fromCenterX;
+          startY = fromY; // Top edge
+          endX = toCenterX;
+          endY = toY + 80; // Bottom edge
+        }
+      }
 
       const hasComplementaryFlow = businessModel.flows.some(f => 
         f.id !== flow.id &&
@@ -135,12 +208,12 @@ export const useWorkflowCanvas = () => {
       let midX, midY;
       
       if (hasComplementaryFlow) {
-        const offset = flow.type === 'billing' ? -15 : 15;
-        midX = (fromX + toX) / 2;
-        midY = (fromY + toY) / 2;
+        const offset = flow.type === 'billing' ? -20 : 20;
+        midX = (startX + endX) / 2;
+        midY = (startY + endY) / 2;
         
-        const dx = toX - fromX;
-        const dy = toY - fromY;
+        const dx = endX - startX;
+        const dy = endY - startY;
         const length = Math.sqrt(dx * dx + dy * dy);
         
         if (length > 0) {
@@ -150,17 +223,17 @@ export const useWorkflowCanvas = () => {
           const controlX = midX + perpX;
           const controlY = midY + perpY;
           
-          ctx.moveTo(fromX, fromY);
-          ctx.quadraticCurveTo(controlX, controlY, toX, toY);
+          ctx.moveTo(startX, startY);
+          ctx.quadraticCurveTo(controlX, controlY, endX, endY);
           
           midX = controlX;
           midY = controlY;
         }
       } else {
-        ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
-        midX = (fromX + toX) / 2;
-        midY = (fromY + toY) / 2;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        midX = (startX + endX) / 2;
+        midY = (startY + endY) / 2;
       }
       
       if (flow.type === 'billing') {
@@ -175,50 +248,50 @@ export const useWorkflowCanvas = () => {
       ctx.stroke();
       
       // Draw arrow
-      const angle = Math.atan2(toY - fromY, toX - fromX);
+      const angle = Math.atan2(endY - startY, endX - startX);
       const arrowLength = 15;
       
       ctx.beginPath();
-      ctx.moveTo(toX, toY);
+      ctx.moveTo(endX, endY);
       ctx.lineTo(
-        toX - arrowLength * Math.cos(angle - Math.PI / 6),
-        toY - arrowLength * Math.sin(angle - Math.PI / 6)
+        endX - arrowLength * Math.cos(angle - Math.PI / 6),
+        endY - arrowLength * Math.sin(angle - Math.PI / 6)
       );
-      ctx.moveTo(toX, toY);
+      ctx.moveTo(endX, endY);
       ctx.lineTo(
-        toX - arrowLength * Math.cos(angle + Math.PI / 6),
-        toY - arrowLength * Math.sin(angle + Math.PI / 6)
+        endX - arrowLength * Math.cos(angle + Math.PI / 6),
+        endY - arrowLength * Math.sin(angle + Math.PI / 6)
       );
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Draw financial details directly on billing flows (không có box)
+      // Draw financial details trên billing flows - font nhỏ hơn 1/2
       if (flow.type === 'billing') {
         const financialInfo = getParticipantFinancialInfo(flow.from);
         if (financialInfo && financialInfo.revenue) {
-          // Revenue text - font nhỏ hơn
+          // Revenue text - font nhỏ hơn 1/2
           ctx.fillStyle = '#059669';
-          ctx.font = 'bold 10px Arial';
+          ctx.font = 'bold 6px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(financialInfo.revenue, midX, midY - 8);
+          ctx.fillText(financialInfo.revenue, midX, midY - 10);
           
-          // Pricing type - font nhỏ hơn
+          // Pricing type - font nhỏ hơn 1/2
           ctx.fillStyle = '#374151';
-          ctx.font = '8px Arial';
-          ctx.fillText(financialInfo.pricingType, midX, midY + 4);
+          ctx.font = '5px Arial';
+          ctx.fillText(financialInfo.pricingType, midX, midY + 2);
           
-          // Tax indicators - font nhỏ hơn
+          // Tax indicators - font nhỏ hơn 1/2
           const indicators = [];
           if (financialInfo.whtApplicable) indicators.push({ text: 'WHT', color: '#dc2626' });
           if (financialInfo.vatGstApplicable) indicators.push({ text: 'VAT/GST', color: '#2563eb' });
           
           if (indicators.length > 0) {
-            let yOffset = midY + 16;
+            let yOffset = midY + 12;
             indicators.forEach((indicator, idx) => {
-              const xOffset = indicators.length === 1 ? midX : midX + (idx === 0 ? -20 : 20);
+              const xOffset = indicators.length === 1 ? midX : midX + (idx === 0 ? -15 : 15);
               
               ctx.fillStyle = indicator.color;
-              ctx.font = '7px Arial';
+              ctx.font = '4px Arial';
               ctx.fillText(indicator.text, xOffset, yOffset);
             });
           }
