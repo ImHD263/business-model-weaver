@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,19 +14,6 @@ interface RoleQuestionnaireProps {
   onUpdate: (participants: Participant[]) => void;
   onNotification: (message: string) => void;
 }
-
-const PREDEFINED_COLORS = [
-  '#3B82F6', // Blue
-  '#10B981', // Green
-  '#F59E0B', // Yellow
-  '#EF4444', // Red
-  '#8B5CF6', // Purple
-  '#06B6D4', // Cyan
-  '#F97316', // Orange
-  '#84CC16', // Lime
-  '#EC4899', // Pink
-  '#6B7280', // Gray
-];
 
 const COMMON_ROLES = [
   'End Customer',
@@ -47,12 +35,10 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState('');
-  const [editingColor, setEditingColor] = useState('');
 
   const handleEditRole = (participant: Participant) => {
     setEditingId(participant.id);
     setEditingRole(participant.role || '');
-    setEditingColor(participant.color || PREDEFINED_COLORS[0]);
   };
 
   const handleSaveRole = () => {
@@ -63,43 +49,40 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
 
     const updatedParticipants = participants.map(p => 
       p.id === editingId 
-        ? { ...p, role: editingRole.trim(), color: editingColor }
+        ? { ...p, role: editingRole.trim() }
         : p
     );
 
     onUpdate(updatedParticipants);
-    onNotification('Role and color updated successfully');
+    onNotification('Role updated successfully');
     setEditingId(null);
     setEditingRole('');
-    setEditingColor('');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingRole('');
-    setEditingColor('');
   };
 
   const assignAutoRoles = () => {
-    const updatedParticipants = participants.map((participant, index) => {
+    const updatedParticipants = participants.map((participant) => {
       if (participant.role) return participant; // Keep existing roles
       
       let autoRole = '';
-      let autoColor = PREDEFINED_COLORS[index % PREDEFINED_COLORS.length];
       
       if (participant.isEndCustomer) {
         autoRole = 'End Customer';
       } else if (participant.isBoschEntity) {
-        autoRole = index % 2 === 0 ? 'PRU (Production Unit)' : 'Regional Distributor';
+        autoRole = 'PRU (Production Unit)';
       } else {
         autoRole = 'Local Distributor';
       }
       
-      return { ...participant, role: autoRole, color: autoColor };
+      return { ...participant, role: autoRole };
     });
 
     onUpdate(updatedParticipants);
-    onNotification('Auto-assigned roles and colors based on participant types');
+    onNotification('Auto-assigned roles based on participant types');
   };
 
   const unassignedCount = participants.filter(p => !p.role).length;
@@ -108,8 +91,8 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Role Assignment & Color Selection</h3>
-          <p className="text-gray-600">Assign roles and colors to participants for better visualization</p>
+          <h3 className="text-lg font-semibold">Role Assignment</h3>
+          <p className="text-gray-600">Assign roles to participants (Color selection will be available in the next step)</p>
         </div>
         
         {unassignedCount > 0 && (
@@ -129,21 +112,18 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
             <Card key={participant.id} className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4 flex-1">
-                  {/* Preview Box - Fixed Layout với 2/3 role và 1/3 name */}
+                  {/* Preview Box - Simple layout without color */}
                   <div className="relative">
-                    <div
-                      className="w-40 h-24 rounded-lg border-2 border-white shadow-lg flex flex-col text-white text-sm font-semibold overflow-hidden"
-                      style={{ backgroundColor: participant.color || '#6B7280' }}
-                    >
+                    <div className="w-40 h-24 rounded-lg border-2 border-gray-300 shadow-lg flex flex-col text-gray-700 text-sm font-semibold overflow-hidden bg-gray-100">
                       {/* Role Section - 2/3 với đường kẻ liền */}
-                      <div className="flex-1 flex items-center justify-center border-b-2 border-white border-solid px-2 py-1">
+                      <div className="flex-1 flex items-center justify-center border-b-2 border-gray-300 border-solid px-2 py-1">
                         <div className="text-center leading-tight text-xs">
                           {participant.role || 'No Role'}
                         </div>
                       </div>
                       
                       {/* Name Section - 1/3 với đường kẻ đứt */}
-                      <div className="h-8 flex items-center justify-center border-t-2 border-white border-dashed px-2">
+                      <div className="h-8 flex items-center justify-center border-t-2 border-gray-300 border-dashed px-2">
                         <div className="text-center text-xs opacity-90 truncate w-full">
                           {participant.entityName}
                         </div>
@@ -181,22 +161,6 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
                           />
                         </div>
                         
-                        <div>
-                          <Label>Color</Label>
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            {PREDEFINED_COLORS.map(color => (
-                              <button
-                                key={color}
-                                className={`w-8 h-8 rounded border-2 ${
-                                  editingColor === color ? 'border-gray-800' : 'border-gray-300'
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => setEditingColor(color)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        
                         <div className="flex gap-2">
                           <Button onClick={handleSaveRole} size="sm">
                             <Save className="w-4 h-4 mr-1" />
@@ -213,13 +177,6 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
                         <div>
                           <p className="text-sm text-gray-600">
                             <strong>Role:</strong> {participant.role || 'Not assigned'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            <strong>Color:</strong> 
-                            <span
-                              className="inline-block w-4 h-4 rounded ml-2 border"
-                              style={{ backgroundColor: participant.color || '#6B7280' }}
-                            />
                           </p>
                         </div>
                         <Button onClick={() => handleEditRole(participant)} variant="outline" size="sm">
@@ -240,8 +197,8 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
         <Card className="p-4 bg-blue-50 border-blue-200">
           <h4 className="font-semibold text-blue-800 mb-2">Next Steps</h4>
           <p className="text-blue-700 text-sm">
-            Once all participants have assigned roles and colors, you can proceed to relationship mapping 
-            to define how they interact with each other.
+            Once all participants have assigned roles, you can proceed to relationship mapping 
+            where you'll also be able to select colors for each participant.
           </p>
           {unassignedCount > 0 && (
             <p className="text-blue-600 text-sm mt-2">

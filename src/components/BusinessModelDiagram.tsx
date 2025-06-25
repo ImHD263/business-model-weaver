@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Save } from 'lucide-react';
+import { Plus, Edit, Save, Palette } from 'lucide-react';
 import type { Participant, Flow } from '@/pages/Index';
 
 interface BusinessModelDiagramProps {
@@ -17,6 +18,19 @@ interface BusinessModelDiagramProps {
   onNotification: (message: string) => void;
 }
 
+const PREDEFINED_COLORS = [
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Yellow
+  '#EF4444', // Red
+  '#8B5CF6', // Purple
+  '#06B6D4', // Cyan
+  '#F97316', // Orange
+  '#84CC16', // Lime
+  '#EC4899', // Pink
+  '#6B7280', // Gray
+];
+
 export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
   participants,
   flows,
@@ -26,6 +40,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
 }) => {
   const [draggedParticipant, setDraggedParticipant] = useState<string | null>(null);
   const [isFlowDialogOpen, setIsFlowDialogOpen] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [newFlow, setNewFlow] = useState({ 
     from: '', 
     to: '', 
@@ -37,18 +52,37 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
   // Check if any participant lacks a role
   const hasParticipantsWithoutRoles = participants.some(p => !p.role);
 
-  // Initialize participant positions if not set with better spacing
+  // Initialize participant positions and auto-assign colors if not set
   useEffect(() => {
-    const participantsNeedingPosition = participants.filter(p => p.x === undefined || p.y === undefined);
-    if (participantsNeedingPosition.length > 0) {
+    const participantsNeedingUpdates = participants.filter(p => 
+      p.x === undefined || p.y === undefined || !p.color
+    );
+    
+    if (participantsNeedingUpdates.length > 0) {
       const updatedParticipants = participants.map((p, index) => ({
         ...p,
-        x: p.x ?? 50 + (index % 3) * 250, // Increased spacing
-        y: p.y ?? 50 + Math.floor(index / 3) * 120 // Better vertical spacing
+        x: p.x ?? 50 + (index % 3) * 250,
+        y: p.y ?? 50 + Math.floor(index / 3) * 120,
+        color: p.color ?? PREDEFINED_COLORS[index % PREDEFINED_COLORS.length]
       }));
       onUpdateParticipants(updatedParticipants);
     }
   }, [participants, onUpdateParticipants]);
+
+  const handleParticipantClick = (participantId: string) => {
+    setSelectedParticipant(selectedParticipant === participantId ? null : participantId);
+  };
+
+  const handleColorSelect = (color: string) => {
+    if (!selectedParticipant) return;
+    
+    const updatedParticipants = participants.map(p =>
+      p.id === selectedParticipant ? { ...p, color } : p
+    );
+    onUpdateParticipants(updatedParticipants);
+    onNotification('Color updated successfully');
+    setSelectedParticipant(null);
+  };
 
   const handleDragStart = (e: React.DragEvent, participantId: string) => {
     setDraggedParticipant(participantId);
@@ -66,8 +100,8 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     if (!diagramRef.current || !participantId) return;
 
     const rect = diagramRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left - 80, rect.width - 160)); // Better bounds
-    const y = Math.max(0, Math.min(e.clientY - rect.top - 40, rect.height - 80));
+    const x = Math.max(0, Math.min(e.clientX - rect.left - 100, rect.width - 200));
+    const y = Math.max(0, Math.min(e.clientY - rect.top - 50, rect.height - 100));
 
     const updatedParticipants = participants.map(p =>
       p.id === participantId ? { ...p, x, y } : p
@@ -260,10 +294,10 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
     
     if (!fromParticipant || !toParticipant) return '';
 
-    const fromX = (fromParticipant.x || 0) + 80; // Center of participant box
-    const fromY = (fromParticipant.y || 0) + 40;
-    const toX = (toParticipant.x || 0) + 80;
-    const toY = (toParticipant.y || 0) + 40;
+    const fromX = (fromParticipant.x || 0) + 100; // Center of participant box
+    const fromY = (fromParticipant.y || 0) + 50;
+    const toX = (toParticipant.x || 0) + 100;
+    const toY = (toParticipant.y || 0) + 50;
 
     // Check if there's a complementary flow (billing vs delivery between same participants)
     const hasComplementaryFlow = flows.some(f => 
@@ -324,7 +358,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">Relationship Mapping</h3>
-          <p className="text-gray-600">Visualize and manage participant relationships</p>
+          <p className="text-gray-600">Visualize participant relationships and select colors</p>
         </div>
         
         <div className="flex gap-2">
@@ -419,6 +453,35 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
         </div>
       </div>
 
+      {/* Color Selection Panel */}
+      {selectedParticipant && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-blue-800">
+              <Palette className="w-4 h-4 inline mr-2" />
+              Select Color for {participants.find(p => p.id === selectedParticipant)?.entityName}
+            </h4>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setSelectedParticipant(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {PREDEFINED_COLORS.map(color => (
+              <button
+                key={color}
+                className="w-10 h-10 rounded border-2 border-white shadow-lg hover:scale-110 transition-transform"
+                style={{ backgroundColor: color }}
+                onClick={() => handleColorSelect(color)}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Legend */}
       <Card className="p-4">
         <h4 className="font-semibold mb-2">Legend</h4>
@@ -430,6 +493,10 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
           <div className="flex items-center gap-2">
             <div className="w-8 h-1 bg-blue-500 border-dashed border-2 border-blue-500 bg-transparent"></div>
             <span className="text-sm">Delivery Flow</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="w-6 h-6 bg-gray-300 rounded border cursor-pointer"></button>
+            <span className="text-sm">Click participant to change color</span>
           </div>
         </div>
       </Card>
@@ -477,11 +544,13 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                 ))}
               </svg>
 
-              {/* Participants - Updated layout */}
+              {/* Participants - Fixed layout (role 2/3, name 1/3) */}
               {participants.map((participant) => (
                 <div
                   key={participant.id}
-                  className="absolute cursor-move select-none"
+                  className={`absolute cursor-pointer select-none ${
+                    selectedParticipant === participant.id ? 'ring-4 ring-blue-400 ring-opacity-50' : ''
+                  }`}
                   style={{
                     left: participant.x || 0,
                     top: participant.y || 0,
@@ -490,22 +559,24 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
                   }}
                   draggable
                   onDragStart={(e) => handleDragStart(e, participant.id)}
+                  onClick={() => handleParticipantClick(participant.id)}
                 >
                   <div
-                    className="w-40 h-20 rounded-lg border-2 border-white shadow-lg flex flex-col items-center justify-center text-white text-sm font-semibold p-3"
-                    style={{ backgroundColor: participant.color }}
+                    className="w-48 h-24 rounded-lg border-2 border-white shadow-lg flex flex-col text-white text-sm font-semibold overflow-hidden"
+                    style={{ backgroundColor: participant.color || '#6B7280' }}
                   >
-                    {/* Entity Name - Prominent */}
-                    <div className="text-center font-bold text-base mb-1 truncate w-full">
-                      {participant.entityName}
+                    {/* Role Section - 2/3 với đường kẻ liền */}
+                    <div className="flex-1 flex items-center justify-center border-b-2 border-white border-solid px-3 py-2">
+                      <div className="text-center leading-tight text-sm break-words w-full">
+                        {participant.role || 'No Role'}
+                      </div>
                     </div>
                     
-                    {/* Role and Country - Below */}
-                    <div className="text-center text-xs opacity-90">
-                      {participant.role && (
-                        <div className="mb-1">{participant.role}</div>
-                      )}
-                      <div>({participant.country})</div>
+                    {/* Name Section - 1/3 với đường kẻ đứt */}
+                    <div className="h-8 flex items-center justify-center border-t-2 border-white border-dashed px-3">
+                      <div className="text-center text-xs opacity-90 truncate w-full">
+                        {participant.entityName}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -515,7 +586,7 @@ export const BusinessModelDiagram: React.FC<BusinessModelDiagramProps> = ({
         </div>
         
         <div className="mt-4 text-sm text-gray-600">
-          <p>💡 Drag participants to reposition them in the diagram</p>
+          <p>💡 Drag participants to reposition them • Click participants to change their color</p>
         </div>
       </Card>
 
