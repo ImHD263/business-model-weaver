@@ -29,22 +29,22 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
 
   const exportAsPDF = async (canvas: HTMLCanvasElement) => {
     try {
-      // For PDF, we'll create a proper PDF-sized canvas
+      // Tạo PDF canvas với kích thước phù hợp
       const pdfCanvas = document.createElement('canvas');
       const ctx = pdfCanvas.getContext('2d');
       
       if (!ctx) throw new Error('Cannot create PDF canvas context');
       
-      // A4 dimensions at 300 DPI for better quality
-      pdfCanvas.width = 2480;
-      pdfCanvas.height = 3508;
+      // A4 landscape dimensions tại 150 DPI để file nhỏ hơn nhưng vẫn chất lượng tốt
+      pdfCanvas.width = 1754; // A4 landscape width at 150 DPI
+      pdfCanvas.height = 1240; // A4 landscape height at 150 DPI
       
       // Fill white background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
       
-      // Calculate scaling to fit workflow in PDF with margins
-      const margin = 120;
+      // Calculate scaling để fit workflow vào PDF với margins
+      const margin = 60;
       const maxWidth = pdfCanvas.width - (margin * 2);
       const maxHeight = pdfCanvas.height - (margin * 2);
       
@@ -58,22 +58,24 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
       
       ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
       
-      // Convert to blob and download as PDF
+      // Export as high-quality PNG (vì browser không support PDF generation native)
       return new Promise<void>((resolve, reject) => {
         pdfCanvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'business-model-workflow.png'; // Export as high-quality PNG for PDF
+            link.download = 'business-model-workflow-pdf-quality.png';
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
             URL.revokeObjectURL(url);
             onNotification('Workflow exported as PDF-quality PNG successfully');
             resolve();
           } else {
             reject(new Error('Failed to create PDF blob'));
           }
-        }, 'image/png');
+        }, 'image/png', 1.0);
       });
     } catch (error) {
       console.error('PDF export error:', error);
@@ -108,7 +110,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         let filename: string;
 
         if (selectedFormat === 'png') {
-          dataUrl = canvas.toDataURL('image/png');
+          dataUrl = canvas.toDataURL('image/png', 1.0);
           filename = 'business-model-workflow.png';
         } else {
           dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -177,6 +179,11 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
             Complete previous steps to enable export
           </p>
         )}
+        
+        <div className="text-xs text-gray-600 space-y-1">
+          <p>💡 Export captures the exact layout from the workflow preview</p>
+          <p>💡 PDF exports as high-quality PNG format for better compatibility</p>
+        </div>
       </div>
     </Card>
   );

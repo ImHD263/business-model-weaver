@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, AlertTriangle, Brain, Edit2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Edit, Save, X } from 'lucide-react';
 import type { Participant } from '@/pages/Index';
 
 interface RoleQuestionnaireProps {
@@ -15,61 +15,30 @@ interface RoleQuestionnaireProps {
   onNotification: (message: string) => void;
 }
 
-const predefinedRoles = [
-  'Sub-contractor',
-  'PRU (Product Responsible Unit)',
-  'LRD (Limited Risk Distributor)',
-  'End Customer',
-  'Supplier',
-  'Distributor',
-  'Manufacturer',
-  'Service Provider'
+const PREDEFINED_COLORS = [
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Yellow
+  '#EF4444', // Red
+  '#8B5CF6', // Purple
+  '#06B6D4', // Cyan
+  '#F97316', // Orange
+  '#84CC16', // Lime
+  '#EC4899', // Pink
+  '#6B7280', // Gray
 ];
 
-const questions = [
-  {
-    id: 'manufacturing',
-    text: 'Does this participant manufacture or produce the product?',
-    options: ['Yes', 'No', 'Partially'],
-    roleMapping: {
-      'Yes': ['Manufacturer', 'PRU (Product Responsible Unit)'],
-      'No': ['Distributor', 'End Customer', 'LRD (Limited Risk Distributor)'],
-      'Partially': ['Sub-contractor', 'Supplier']
-    }
-  },
-  {
-    id: 'distribution',
-    text: 'Is this participant involved in distribution or sales?',
-    options: ['Primary distributor', 'Secondary distributor', 'End customer', 'Not involved'],
-    roleMapping: {
-      'Primary distributor': ['Distributor', 'LRD (Limited Risk Distributor)'],
-      'Secondary distributor': ['Sub-contractor', 'Distributor'],
-      'End customer': ['End Customer'],
-      'Not involved': ['Manufacturer', 'Supplier', 'PRU (Product Responsible Unit)']
-    }
-  },
-  {
-    id: 'responsibility',
-    text: 'What is their primary responsibility?',
-    options: ['Product development', 'Manufacturing', 'Sales & marketing', 'End usage', 'Support services'],
-    roleMapping: {
-      'Product development': ['PRU (Product Responsible Unit)', 'Manufacturer'],
-      'Manufacturing': ['Manufacturer', 'Sub-contractor'],
-      'Sales & marketing': ['Distributor', 'LRD (Limited Risk Distributor)'],
-      'End usage': ['End Customer'],
-      'Support services': ['Service Provider', 'Sub-contractor']
-    }
-  },
-  {
-    id: 'risk',
-    text: 'What level of business risk do they bear?',
-    options: ['Full risk', 'Limited risk', 'No risk'],
-    roleMapping: {
-      'Full risk': ['PRU (Product Responsible Unit)', 'Manufacturer'],
-      'Limited risk': ['LRD (Limited Risk Distributor)', 'Distributor'],
-      'No risk': ['Sub-contractor', 'End Customer']
-    }
-  }
+const COMMON_ROLES = [
+  'End Customer',
+  'Local Distributor',
+  'Regional Distributor', 
+  'LRD (Local/Regional Distributor)',
+  'PRU (Production Unit)',
+  'Manufacturer',
+  'Supplier',
+  'Service Provider',
+  'Logistics Partner',
+  'Financial Institution'
 ];
 
 export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
@@ -77,325 +46,209 @@ export const RoleQuestionnaire: React.FC<RoleQuestionnaireProps> = ({
   onUpdate,
   onNotification
 }) => {
-  const [selectedParticipant, setSelectedParticipant] = useState<string>('');
-  const [editingParticipant, setEditingParticipant] = useState<string>('');
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [suggestedRoles, setSuggestedRoles] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingRole, setEditingRole] = useState('');
+  const [editingColor, setEditingColor] = useState('');
 
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    const newAnswers = { ...answers, [questionId]: answer };
-    setAnswers(newAnswers);
-    
-    // Calculate suggested roles based on answers
-    if (Object.keys(newAnswers).length === questions.length) {
-      analyzeRoles(newAnswers);
+  const handleEditRole = (participant: Participant) => {
+    setEditingId(participant.id);
+    setEditingRole(participant.role || '');
+    setEditingColor(participant.color || PREDEFINED_COLORS[0]);
+  };
+
+  const handleSaveRole = () => {
+    if (!editingId || !editingRole.trim()) {
+      onNotification('Please enter a valid role');
+      return;
     }
-  };
 
-  const analyzeRoles = (allAnswers: Record<string, string>) => {
-    const roleScores: Record<string, number> = {};
-    
-    questions.forEach(question => {
-      const answer = allAnswers[question.id];
-      if (answer && question.roleMapping[answer]) {
-        question.roleMapping[answer].forEach(role => {
-          roleScores[role] = (roleScores[role] || 0) + 1;
-        });
-      }
-    });
-    
-    // Sort roles by score and get top suggestions
-    const sortedRoles = Object.entries(roleScores)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([role]) => role);
-    
-    setSuggestedRoles(sortedRoles);
-    setShowSuggestions(true);
-  };
-
-  const assignRole = (participantId: string, role: string) => {
-    const updatedParticipants = participants.map(p =>
-      p.id === participantId ? { ...p, role } : p
+    const updatedParticipants = participants.map(p => 
+      p.id === editingId 
+        ? { ...p, role: editingRole.trim(), color: editingColor }
+        : p
     );
+
     onUpdate(updatedParticipants);
-    
-    const participant = participants.find(p => p.id === participantId);
-    onNotification(`Role "${role}" assigned to ${participant?.entityName}`);
-    
-    // Reset for next participant
-    resetForm();
+    onNotification('Role and color updated successfully');
+    setEditingId(null);
+    setEditingRole('');
+    setEditingColor('');
   };
 
-  const resetForm = () => {
-    setAnswers({});
-    setSuggestedRoles([]);
-    setShowSuggestions(false);
-    setSelectedParticipant('');
-    setEditingParticipant('');
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingRole('');
+    setEditingColor('');
   };
 
-  const startEditing = (participantId: string) => {
-    setEditingParticipant(participantId);
-    setSelectedParticipant('');
-    setAnswers({});
-    setSuggestedRoles([]);
-    setShowSuggestions(false);
-  };
-
-  const autoAssignRoles = () => {
-    const updatedParticipants = participants.map(participant => {
-      // Simple rule-based assignment
+  const assignAutoRoles = () => {
+    const updatedParticipants = participants.map((participant, index) => {
+      if (participant.role) return participant; // Keep existing roles
+      
+      let autoRole = '';
+      let autoColor = PREDEFINED_COLORS[index % PREDEFINED_COLORS.length];
+      
       if (participant.isEndCustomer) {
-        return { ...participant, role: 'End Customer' };
+        autoRole = 'End Customer';
       } else if (participant.isBoschEntity) {
-        return { ...participant, role: 'PRU (Product Responsible Unit)' };
+        autoRole = index % 2 === 0 ? 'PRU (Production Unit)' : 'Regional Distributor';
       } else {
-        return { ...participant, role: 'Sub-contractor' };
+        autoRole = 'Local Distributor';
       }
+      
+      return { ...participant, role: autoRole, color: autoColor };
     });
-    
+
     onUpdate(updatedParticipants);
-    onNotification('Auto-assignment completed. Please review and adjust as needed.');
-    
-    // Check for conflicts
-    checkRoleConflicts(updatedParticipants);
+    onNotification('Auto-assigned roles and colors based on participant types');
   };
 
-  const checkRoleConflicts = (participantsList: Participant[]) => {
-    const roleCount = participantsList.reduce((acc, p) => {
-      if (p.role) {
-        acc[p.role] = (acc[p.role] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const conflicts: string[] = [];
-    
-    // Check for multiple PRUs
-    if (roleCount['PRU (Product Responsible Unit)'] > 1) {
-      conflicts.push('Multiple Product Responsible Units detected');
-    }
-    
-    // Check for missing end customer
-    if (!roleCount['End Customer']) {
-      conflicts.push('No End Customer identified');
-    }
-    
-    if (conflicts.length > 0) {
-      onNotification(`⚠️ Potential conflicts: ${conflicts.join(', ')}`);
-    } else {
-      onNotification('✅ Roles are clarified. No conflict found.');
-    }
-  };
-
-  const currentParticipant = participants.find(p => p.id === selectedParticipant || p.id === editingParticipant);
-  const unassignedParticipants = participants.filter(p => !p.role);
-  const assignedParticipants = participants.filter(p => p.role);
+  const unassignedCount = participants.filter(p => !p.role).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold">Role Assignment</h3>
-          <p className="text-gray-600">Assign roles based on questionnaire or manual selection</p>
+          <h3 className="text-lg font-semibold">Role Assignment & Color Selection</h3>
+          <p className="text-gray-600">Assign roles and colors to participants for better visualization</p>
         </div>
         
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={autoAssignRoles}
-            className="flex items-center gap-2"
-            disabled={participants.length === 0}
-          >
-            <Brain className="w-4 h-4" />
-            Auto-Assign
+        {unassignedCount > 0 && (
+          <Button onClick={assignAutoRoles} variant="outline">
+            Auto-assign Roles ({unassignedCount} remaining)
           </Button>
-        </div>
+        )}
       </div>
 
-      {/* Assigned Participants */}
-      {assignedParticipants.length > 0 && (
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            Assigned Participants ({assignedParticipants.length})
-          </h4>
-          <div className="grid gap-2">
-            {assignedParticipants.map(participant => (
-              <div key={participant.id} className="flex items-center justify-between p-2 bg-green-50 rounded">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: participant.color }}
-                  />
-                  <span className="font-medium">{participant.entityName}</span>
-                  <span className="text-sm text-gray-600">({participant.country})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">{participant.role}</Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startEditing(participant.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {participants.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-gray-500">No participants available. Please add participants in the first step.</p>
         </Card>
-      )}
-
-      {/* Unassigned Participants */}
-      {unassignedParticipants.length > 0 && (
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            Unassigned Participants ({unassignedParticipants.length})
-          </h4>
-          
-          <div className="space-y-4">
-            <div>
-              <Label>Select participant to assign role:</Label>
-              <Select value={selectedParticipant} onValueChange={setSelectedParticipant}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a participant" />
-                </SelectTrigger>
-                <SelectContent>
-                  {unassignedParticipants.map(participant => (
-                    <SelectItem key={participant.id} value={participant.id}>
-                      {participant.entityName} ({participant.country})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Manual Role Assignment for unassigned */}
-            {selectedParticipant && !showSuggestions && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Or assign role manually:</Label>
-                  <Select onValueChange={(role) => assignRole(selectedParticipant, role)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {predefinedRoles.map(role => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">or</p>
-                  <p className="text-sm font-medium">Answer the questionnaire for AI-driven suggestions:</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Edit Role for assigned participants */}
-      {editingParticipant && (
-        <Card className="p-4 border-blue-200 bg-blue-50">
-          <h4 className="font-semibold mb-3 flex items-center gap-2">
-            <Edit2 className="w-5 h-5 text-blue-600" />
-            Editing Role for: {participants.find(p => p.id === editingParticipant)?.entityName}
-          </h4>
-          
-          <div className="space-y-4">
-            <div>
-              <Label>Select new role:</Label>
-              <Select onValueChange={(role) => assignRole(editingParticipant, role)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {predefinedRoles.map(role => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetForm}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Questionnaire */}
-      {(selectedParticipant || editingParticipant) && currentParticipant && (
-        <div className="space-y-4 border-t pt-4">
-          <h5 className="font-medium">
-            Questionnaire for: {currentParticipant.entityName}
-          </h5>
-          
-          {questions.map((question) => (
-            <div key={question.id} className="space-y-2">
-              <Label className="text-sm font-medium">{question.text}</Label>
-              <RadioGroup
-                value={answers[question.id] || ''}
-                onValueChange={(value) => handleAnswerChange(question.id, value)}
-              >
-                {question.options.map((option) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                    <Label htmlFor={`${question.id}-${option}`} className="text-sm">
-                      {option}
-                    </Label>
+      ) : (
+        <div className="grid gap-4">
+          {participants.map((participant) => (
+            <Card key={participant.id} className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                  {/* Preview Box - Updated Layout */}
+                  <div className="relative">
+                    <div
+                      className="w-32 h-20 rounded-lg border-2 border-white shadow-lg flex flex-col text-white text-xs font-semibold overflow-hidden"
+                      style={{ backgroundColor: participant.color || '#6B7280' }}
+                    >
+                      {/* Role Section - 2/3 with solid border */}
+                      <div className="flex-1 flex items-center justify-center border-b-2 border-white border-solid px-2">
+                        <div className="text-center leading-tight">
+                          {participant.role || 'No Role'}
+                        </div>
+                      </div>
+                      
+                      {/* Name Section - 1/3 with dashed border */}
+                      <div className="h-6 flex items-center justify-center border-t-2 border-white border-dashed px-2">
+                        <div className="text-center text-xs opacity-90 truncate">
+                          {participant.entityName}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </RadioGroup>
-            </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-semibold">{participant.entityName}</h4>
+                      <Badge variant="outline">{participant.country}</Badge>
+                      {participant.isBoschEntity && <Badge>Bosch Entity</Badge>}
+                      {participant.isEndCustomer && <Badge variant="secondary">End Customer</Badge>}
+                    </div>
+                    
+                    {editingId === participant.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label>Role</Label>
+                          <Select value={editingRole} onValueChange={setEditingRole}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select or type a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COMMON_ROLES.map(role => (
+                                <SelectItem key={role} value={role}>{role}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={editingRole}
+                            onChange={(e) => setEditingRole(e.target.value)}
+                            placeholder="Or type custom role"
+                            className="mt-2"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label>Color</Label>
+                          <div className="flex gap-2 mt-2 flex-wrap">
+                            {PREDEFINED_COLORS.map(color => (
+                              <button
+                                key={color}
+                                className={`w-8 h-8 rounded border-2 ${
+                                  editingColor === color ? 'border-gray-800' : 'border-gray-300'
+                                }`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => setEditingColor(color)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveRole} size="sm">
+                            <Save className="w-4 h-4 mr-1" />
+                            Save
+                          </Button>
+                          <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                            <X className="w-4 h-4 mr-1" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            <strong>Role:</strong> {participant.role || 'Not assigned'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <strong>Color:</strong> 
+                            <span
+                              className="inline-block w-4 h-4 rounded ml-2 border"
+                              style={{ backgroundColor: participant.color || '#6B7280' }}
+                            />
+                          </p>
+                        </div>
+                        <Button onClick={() => handleEditRole(participant)} variant="outline" size="sm">
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       )}
 
-      {/* AI Suggestions */}
-      {showSuggestions && suggestedRoles.length > 0 && (
-        <Card className="p-4 bg-blue-50">
-          <h5 className="font-medium mb-2 flex items-center gap-2">
-            <Brain className="w-4 h-4 text-blue-600" />
-            AI-Suggested Roles:
-          </h5>
-          <div className="flex gap-2 flex-wrap">
-            {suggestedRoles.map((role) => (
-              <Button
-                key={role}
-                variant="outline"
-                size="sm"
-                onClick={() => assignRole(selectedParticipant || editingParticipant, role)}
-                className="text-xs"
-              >
-                {role}
-              </Button>
-            ))}
-          </div>
-          <p className="text-xs text-gray-600 mt-2">
-            Click on a suggested role to assign it, or continue with manual selection above.
+      {participants.length > 0 && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <h4 className="font-semibold text-blue-800 mb-2">Next Steps</h4>
+          <p className="text-blue-700 text-sm">
+            Once all participants have assigned roles and colors, you can proceed to relationship mapping 
+            to define how they interact with each other.
           </p>
-        </Card>
-      )}
-
-      {participants.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-gray-500">No participants available. Please add participants in the previous step.</p>
+          {unassignedCount > 0 && (
+            <p className="text-blue-600 text-sm mt-2">
+              ⚠️ {unassignedCount} participant(s) still need role assignment
+            </p>
+          )}
         </Card>
       )}
     </div>
