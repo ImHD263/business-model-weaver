@@ -270,13 +270,13 @@ export const useWorkflowCanvas = () => {
         if (financialInfo && financialInfo.revenue) {
           // Revenue text - tăng font size để dễ đọc
           ctx.fillStyle = '#059669';
-          ctx.font = 'bold 12px Arial';
+          ctx.font = 'bold 14px Arial';
           ctx.textAlign = 'center';
           ctx.fillText(financialInfo.revenue, midX, midY - 15);
           
           // Pricing type - tăng font size
           ctx.fillStyle = '#374151';
-          ctx.font = '10px Arial';
+          ctx.font = '12px Arial';
           ctx.fillText(financialInfo.pricingType, midX, midY);
           
           // Tax indicators - tăng font size
@@ -290,7 +290,7 @@ export const useWorkflowCanvas = () => {
               const xOffset = indicators.length === 1 ? midX : midX + (idx === 0 ? -20 : 20);
               
               ctx.fillStyle = indicator.color;
-              ctx.font = '8px Arial';
+              ctx.font = '10px Arial';
               ctx.fillText(indicator.text, xOffset, yOffset);
             });
           }

@@ -62,7 +62,9 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
       pdf.save('business-model-workflow.pdf');
       onNotification('Workflow exported as PDF successfully');
     } catch (error) {
-      console.error('PDF export error:', error);
+      if (import.meta.env.DEV) {
+        console.error('PDF export error:', error);
+      }
       onNotification('Failed to export as PDF');
       throw error;
     }
@@ -77,14 +79,18 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
     setIsExporting(true);
     
     try {
-      console.log('Starting export with business model:', businessModel);
+      if (import.meta.env.DEV) {
+        console.log('Starting export with business model:', businessModel);
+      }
       
       const canvas = drawWorkflowToCanvas(businessModel);
       if (!canvas) {
         throw new Error('Failed to create workflow canvas');
       }
 
-      console.log('Canvas created successfully, size:', canvas.width, 'x', canvas.height);
+      if (import.meta.env.DEV) {
+        console.log('Canvas created successfully, size:', canvas.width, 'x', canvas.height);
+      }
 
       if (selectedFormat === 'pdf') {
         await exportAsPDF(canvas);
@@ -101,7 +107,9 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
           filename = 'business-model-workflow.jpg';
         }
 
-        console.log('Data URL created, downloading...');
+        if (import.meta.env.DEV) {
+          console.log('Data URL created, downloading...');
+        }
 
         // Download the image
         const link = document.createElement('a');
@@ -112,10 +120,15 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
         document.body.removeChild(link);
 
         onNotification(`Workflow exported as ${selectedFormat.toUpperCase()} successfully`);
-        console.log('Export completed successfully');
+        
+        if (import.meta.env.DEV) {
+          console.log('Export completed successfully');
+        }
       }
     } catch (error) {
-      console.error('Export error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Export error:', error);
+      }
       onNotification('Failed to export workflow. Please try again.');
     } finally {
       setIsExporting(false);
